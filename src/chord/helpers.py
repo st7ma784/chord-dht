@@ -1,9 +1,6 @@
 import hashlib
 from typing import Union
 
-from config.config import dht_config
-
-
 def generate_id(key: Union[bytes, str]) -> str:
     """Generate id for key or node on the ring.
       Args:
@@ -18,7 +15,7 @@ def generate_id(key: Union[bytes, str]) -> str:
 
     key_hash = hashlib.sha1(_key).hexdigest()
     # get first m bits from hash
-    return key_hash[: int(dht_config["finger_table_sz"]) // 4]
+    return key_hash[: int(8) // 4]
 
 
 def gen_finger(addr: str):
@@ -26,7 +23,7 @@ def gen_finger(addr: str):
     Generate an entry in the finger table.
     """
     _id = generate_id(addr.encode("utf-8"))
-    ring_sz = 2 ** (int(dht_config["finger_table_sz"]))
+    ring_sz = 2 ** (8)
     return {"addr": addr, "id": _id, "numeric_id": int(_id, 16) % ring_sz}
 
 
@@ -34,7 +31,7 @@ def between(_id: int, left: int, right: int, inclusive_left=False, inclusive_rig
     """
     Check if _id lies between left and right in a circular ring.
     """
-    ring_sz = 2 ** (int(dht_config["finger_table_sz"]))
+    ring_sz = 2 ** (8)
     if left != right:
         if inclusive_left:
             left = (left - 1 + ring_sz) % ring_sz

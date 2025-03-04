@@ -18,15 +18,15 @@ class Node:
         self._addr = f"{host}:{port}"
         self._id = generate_id(self._addr.encode("utf-8"))
 
-        ring_sz = 2 ** (int(dht_config["finger_table_sz"]))
+        ring_sz = 2 ** (int(8))
         self._numeric_id = int(self._id, 16) % ring_sz
 
-        self._MAX_STEPS = int(dht_config["max_steps"])
-        self._MAX_SUCC = int(dht_config["max_succ"])
+        self._MAX_STEPS = int(4)
+        self._MAX_SUCC = int(1)
         self._REPLICATION_COUNT = 3
 
         self._fingers = [
-            {"addr": "", "id": "", "numeric_id": -1} for _ in range(int(dht_config["finger_table_sz"]))
+            {"addr": "", "id": "", "numeric_id": -1} for _ in range(8)
         ]
 
         self._predecessor = None
@@ -51,7 +51,7 @@ class Node:
         """
         addr = self._successor["addr"] if self._successor else self._addr
         _id = generate_id(addr.encode("utf-8"))
-        for i in range(int(dht_config["finger_table_sz"])):
+        for i in range(int(8)):
             self._fingers[i] = {"addr": addr, "id": _id, "numeric_id": int(_id, 16)}
 
         self._successor = self._fingers[0]
@@ -157,7 +157,7 @@ class Node:
     ##################################
 
     async def check_predecessor(self):
-        _fix_interval = int(dht_config["fix_interval"])
+        _fix_interval = int(1)
         while True:
             await asyncio.sleep(_fix_interval)
             if self._predecessor:
@@ -180,7 +180,7 @@ class Node:
         successor about the current node.
         """
         # if succ not yet set don't run stabilize
-        _fix_interval = int(dht_config["fix_interval"])
+        _fix_interval = 1
         print_interval = 60
         time_since_last_print = print_interval
         while True:
@@ -226,7 +226,7 @@ class Node:
         """
         Updates finger table to fix entries in case of change.
         """
-        _fix_interval = int(dht_config["fix_interval"])
+        _fix_interval = 1
         while True:
             await asyncio.sleep(_fix_interval)
             self._next = (self._next + 1) % len(self._fingers)

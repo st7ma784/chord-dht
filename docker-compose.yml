@@ -3,7 +3,7 @@ services:
   bootstrap:
     build:
       context: .
-    command: "sh -c 'python3 -u src/main.py --start-api --dht-address bootstrap:6501'"
+    command: "sh -c 'python3 -u src/main.py --dht-address bootstrap:6501'"
     ports:
       - 36979:36979
   node_1:
