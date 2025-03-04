@@ -6,6 +6,7 @@ on:
     # Publish semver tags as releases.
     paths:
       - src/**/*
+      - .github/workflows/docker-build-push.yml
       - Dockerfile
 
 jobs:
