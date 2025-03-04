@@ -3,3 +3,8 @@ aiomas
 aiohttp
 nest_asyncio
 diskcache
+pydarn
+opencv-python
+numpy
+matplotlib
+minio

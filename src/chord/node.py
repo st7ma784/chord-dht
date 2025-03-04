@@ -1,11 +1,12 @@
 import asyncio
 import os
-
+from api.job import Job
 from chord.helpers import generate_id, between, print_table
 from chord.rpc import *
 from chord.storage import Storage
 # from config.config import dht_config
-
+from minio import Minio
+from typing import Optional
 
 class Node:
     """
@@ -17,7 +18,12 @@ class Node:
     def __init__(self, host: str, port: str):
         self._addr = f"{host}:{port}"
         self._id = generate_id(self._addr.encode("utf-8"))
-
+        self.MinioClient = Minio(
+            os.getenv('MINIO_URL', 'minio:9000'),
+            access_key=os.getenv('MINIO_ACCESS_KEY', 'minioadmin'),
+            secret_key=os.getenv('MINIO_SECRET_KEY', 'minioadmin'),
+            secure=False,
+        )
         ring_sz = 2 ** (int(8))
         self._numeric_id = int(self._id, 16) % ring_sz
 
@@ -37,7 +43,7 @@ class Node:
         # for stabilization
         self._successors = [None for _ in range(self._MAX_SUCC)]
         self._next = 0
-
+        
         # tls_dir = os.environ.get("TLS_DIR", "node_1")
 
     
@@ -412,3 +418,37 @@ class Node:
     @staticmethod
     def completed():
         return "completed"
+
+
+    @aiomas.expose
+    async def put_job(self, job, ttl: int):
+        """
+        Stores a job in the DHT.
+        Args:
+            job (Job): The job to be stored.
+            ttl (int): time to live. How long this should remain in the network.
+        Returns:
+            keys (list): The updated list of keys.
+        """
+        key = job.hash
+        value = job.serialize()
+        return await self.put_key(key, value, ttl)
+
+    async def run_job(self, job):
+        return job.run(self.minioClient)
+        # Logic to return the result to the requester
+
+    async def worker(self):
+        """
+        Worker to run through jobs stored in the DHT.
+        """
+        _fix_interval = 1
+        while True:
+            await asyncio.sleep(_fix_interval)
+            keys = self._storage.get_all_keys()
+            for key in keys:
+                job_data = self._storage.get_key(key)
+                if job_data:
+                    job = Job.deserialize(job_data)
+                    await self.run_job(job)
+                    

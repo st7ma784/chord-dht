@@ -4,13 +4,14 @@ services:
     build:
       context: .
     command: "sh -c 'python3 -u src/main.py'"
-    ports:
-      - 36979:36979
+
   node:
     build:
       context: .
     depends_on:
       - bootstrap
+    ports:
+      - "8001:8010"
     deploy:
-      replicas: 3
+      replicas: 6
     command: "sh -c 'python3 -u src/main.py --bootstrap_node bootstrap:6501 '"

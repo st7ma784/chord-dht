@@ -1,53 +1,37 @@
 import asyncio
-
-
+from aiohttp import web
 from .service import ApiService
+from .job import Job
 
 
-class ApiController(asyncio.Protocol):
+class ApiController:
     """
     This class represent the API controller (The entry class).
     """
 
     def __init__(self, chord_node):
-        self.transport = None
-        self.service = ApiService(chord_node)
+        self.chord_node = chord_node
+        self.jobs = {}
+       
+    async def add_job(self, request):
+        data = await request.json()
+        job_id = str(len(self.jobs) + 1)
+        job = Job(job_id, data)
+        self.jobs[job_id] = job
+        # Logic to move job to relevant worker
+        await self.chord_node.put_job(job)
+        return web.json_response({'job_id': job_id})
 
-    def connection_made(self, transport):
-        """
-        sets the connection.
-        """
-        self.transport = transport
+    async def get_job_status(self, request):
+        job_id = request.match_info['job_id']
+        job = self.jobs.get(job_id)
+        if job:
+            return web.json_response({'status': job.status, 'result': job.result})
+        else:
+            return web.json_response({'error': 'Job not found'}, status=404)
 
-    async def process_data(self, data):
-        """
-        Unpacks the bytes message and extracts/parses the different fields.
-            Args:
-                data (bytes): The message in bytes.
-            Returns:
-                result (string): The result from processing the arg data
-                (if one exists).
-        """
-        result = await self.service.process_message(data)
-        
-        if not result:
-            return self.close_connection()
-
-        if isinstance(result, str):
-            result = result.encode("utf-8")
-
-        if self.transport:
-            self.transport.write(result)
-
-        return result
-
-    def data_received(self, data):
-        asyncio.ensure_future(self.process_data(data))
-
-    def close_connection(self):
-        """
-        Closes the currently open connection.
-        """
-        if self.transport:
-            self.transport.close()
-            self.transport = None
+    def get_routes(self):
+        return [
+            web.post('/jobs', self.add_job),
+            web.get('/jobs/{job_id}', self.get_job_status),
+        ]

@@ -1,6 +1,7 @@
 import argparse
 import asyncio
 import os
+import aiohttp.web
 
 import aiomas
 import nest_asyncio
@@ -10,10 +11,14 @@ from chord.node import Node
 
 
 async def _start_api_server(host: str, port: str, chord_node: Node):
-    loop = asyncio.get_running_loop()
-    server = await loop.create_server(lambda: ApiController(chord_node), host, int(port))
-    # await server.serve_forever()
-    return server
+    app = aiohttp.web.Application()
+    api_controller = ApiController(chord_node)
+    app.add_routes(api_controller.get_routes())
+    runner = aiohttp.web.AppRunner(app)
+    await runner.setup()
+    site = aiohttp.web.TCPSite(runner, host, int(port))
+    await site.start()
+    return runner
 
 
 async def _start_chord_node(args):
@@ -33,6 +38,7 @@ async def _start(args: argparse.Namespace):
     stabilize_task = loop.create_task(chord_node.stabilize())
     fix_fingers_task = loop.create_task(chord_node.fix_fingers())
     check_pred_task = loop.create_task(chord_node.check_predecessor())
+    do_work= loop.create_task(chord_node.worker())
     await chord_node.join(bootstrap_node=args.bootstrap_node)
 
     chord_rpc_server = await aiomas.rpc.start_server((dht_host, dht_port), chord_node)
@@ -55,7 +61,7 @@ async def _start(args: argparse.Namespace):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--dht_address", help="Address to run the DHT Node on", default="{}:6501".format(os.getenv("HOSTNAME", "localhost")))
-    parser.add_argument("--api_address", help="Address to run the DHT Node on", default="{}:8080".format(os.getenv("HOSTNAME", "localhost")))
+    parser.add_argument("--api_address", help="Address to run the DHT Node on", default="{}:8001".format(os.getenv("HOSTNAME", "localhost")))
     parser.add_argument(
         "--bootstrap_node", help="Start a new Chord Ring if argument no present", default=None,
     )
