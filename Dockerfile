@@ -7,11 +7,9 @@ RUN apt-get install -y build-essential
 
 # Install python dependencies
 RUN pip install -U pip
-RUN pip install poetry
-COPY ./poetry.lock ./pyproject.toml /app/
 WORKDIR /app
-RUN poetry config virtualenvs.create false --local
-RUN poetry install --no-dev
+COPY ./requirements.txt /app/requirements.txt
+RUN pip install -r requirements.txt --no-cache-dir
 
 # Copy the rest of the project, so the above is cached if requirements didn't change
 COPY ./ /app/

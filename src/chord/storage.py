@@ -5,7 +5,6 @@ from binascii import unhexlify
 from typing import List
 
 from diskcache import Cache
-from loguru import logger
 
 from chord.helpers import between
 
@@ -38,11 +37,11 @@ class Storage:
             value, tag = self._store.get(f"{key}", tag=True)
             if value:
                 _val_bytes = unhexlify(value)
-                logger.debug(f"Got {value} with digest {tag} - {self.make_digest(_val_bytes)}")
+                # logger.debug(f"Got {value} with digest {tag} - {self.make_digest(_val_bytes)}")
                 if tag != self.make_digest(_val_bytes):
                     return None
         except (TimeoutError, AttributeError) as e:
-            logger.error(e)
+            # logger.error(e)
             pass
         return value
 
@@ -55,11 +54,11 @@ class Storage:
                 ttl (int): time to live. How long this should remain in the network.
         """
         _byte_val = unhexlify(value)
-        logger.debug(f"Saving Key: {key} with ttl {ttl}secs")
+        # logger.debug(f"Saving Key: {key} with ttl {ttl}secs")
         try:
             return self._store.set(key, value=value, expire=ttl, tag=self.make_digest(_byte_val))
         except Exception as e:
-            logger.error(e)
+            # logger.error(e)
             return False
 
     def _del_key(self, key):
@@ -104,18 +103,18 @@ class Storage:
         """
         keys = []
         values = []
-        logger.debug(list(self._store.iterkeys()))
+        # logger.debug(list(self._store.iterkeys()))
         for key in self._store.iterkeys():
-            logger.debug(
-                f"{key} - ({left}, {right}) => {between(int(key, 16), left, right, inclusive_left=False, inclusive_right=False)}"
-            )
+            # logger.debug(
+            #     f"{key} - ({left}, {right}) => {between(int(key, 16), left, right, inclusive_left=False, inclusive_right=False)}"
+            # )
             if between(int(key, 16), left, right, inclusive_left=False, inclusive_right=False):
                 val = self.get_key(key)
                 if val:
                     keys.append(key)
                     values.append(val)
 
-        logger.debug(f"Got {keys} => {values}")
+        # logger.debug(f"Got {keys} => {values}")
         return keys, values
 
     def put_keys(self, keys, values):

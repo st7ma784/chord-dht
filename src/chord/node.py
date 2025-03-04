@@ -4,7 +4,7 @@ import os
 from chord.helpers import generate_id, between, print_table
 from chord.rpc import *
 from chord.storage import Storage
-from config.config import dht_config
+# from config.config import dht_config
 
 
 class Node:
@@ -38,18 +38,9 @@ class Node:
         self._successors = [None for _ in range(self._MAX_SUCC)]
         self._next = 0
 
-        tls_dir = os.environ.get("TLS_DIR", "node_1")
+        # tls_dir = os.environ.get("TLS_DIR", "node_1")
 
-        # SSL
-        certs_dir = os.path.join(os.path.dirname(__file__), f"../tls/{tls_dir}")
-        logger.debug(certs_dir)
-        self.client_ssl_ctx = aiomas.util.make_ssl_client_context(
-            cafile=os.path.join(certs_dir, "ca.pem"),
-            certfile=os.path.join(certs_dir, "node.pem"),
-            keyfile=os.path.join(certs_dir, "node.key"),
-        )
-        self.client_ssl_ctx.check_hostname = False
-
+    
     ##################################
     # Node Initialization(s)
     ##################################
@@ -69,17 +60,17 @@ class Node:
     async def join(self, bootstrap_node: Optional[str]):
         # Create a new ring if no bootstrap node is given
         if not bootstrap_node:
-            logger.debug("Bootstrap node initialized...")
+            # logger.debug("Bootstrap node initialized...")
             self._create()
         else:
             if self._successor is None:
                 _, self._successor = await rpc_ask_for_succ(
-                    gen_finger(bootstrap_node), self._numeric_id, ssl_ctx=self.client_ssl_ctx,
+                    gen_finger(bootstrap_node), self._numeric_id
                 )
                 self._init_empty_fingers()
                 # get keys from succ
                 keys, values = await rpc_get_all_keys(
-                    next_node=self._successor, node_id=self._numeric_id, ssl_ctx=self.client_ssl_ctx,
+                    next_node=self._successor, node_id=self._numeric_id,
                 )
                 self._storage.put_keys(keys, values)
             else:
@@ -155,7 +146,7 @@ class Node:
         found, next_node = self._find_successor(numeric_id)
         i = 0
         while not found and i < self._MAX_STEPS:
-            found, next_node = await rpc_ask_for_succ(next_node, numeric_id, ssl_ctx=self.client_ssl_ctx)
+            found, next_node = await rpc_ask_for_succ(next_node, numeric_id)
             i += 1
         if found:
             return True, next_node
@@ -170,7 +161,7 @@ class Node:
         while True:
             await asyncio.sleep(_fix_interval)
             if self._predecessor:
-                res = await rpc_ping(self._predecessor["addr"], ssl_ctx=self.client_ssl_ctx)
+                res = await rpc_ping(self._predecessor["addr"])
                 if not res:
                     self._predecessor = None
 
@@ -199,7 +190,7 @@ class Node:
             # logger.info("Stabilizing the network")
             try:
                 pred, succ_list = await rpc_ask_for_pred_and_succlist(
-                    self._successor["addr"], ssl_ctx=self.client_ssl_ctx
+                    self._successor["addr"]
                 )
                 if pred is not None:
                     if between(
@@ -212,11 +203,11 @@ class Node:
                         self._successor = pred.copy()
                         self._fingers[0] = self._successor
                 self._successors = [self._successor] + succ_list[:-1]
-                await rpc_notify(self._successor["addr"], self._addr, ssl_ctx=self.client_ssl_ctx)
+                await rpc_notify(self._successor["addr"], self._addr)
             except Exception as e:
-                logger.error(e)
-                logger.error("Succ is no longer working switch to next succ.")
-                logger.info(self._successor)
+                # logger.error(e)
+                # logger.error("Succ is no longer working switch to next succ.")
+                # logger.info(self._successor)
                 self._successors = self._successors[1:]
                 if len(self._successors) == 0:
                     self._successors.append(gen_finger(self._addr))
@@ -243,23 +234,24 @@ class Node:
             found, succ = await self.find_successor(next_id)
             # logger.info(f"Result for fixing finger {self._next} {next_id} => {found} {succ}")
             if not found:
-                logger.warning("No suitable node found to fix this finger.")
-            else:
-                if self._fingers[self._next] != succ:
-                    # logger.info(f"Finger {self._next} updated from {self._fingers[self._next]['addr']} to {succ}.")
-                    self._fingers[self._next] = succ
-                    # # TODO: optimization need to check for correctness
-                    for i in range(self._next + 1, len(self._fingers)):
-                        __id = (self._numeric_id + (2 ** i)) % (2 ** len(self._fingers))
-                        if between(
-                            __id,
-                            self._numeric_id,
-                            succ["numeric_id"],
-                            inclusive_right=False,
-                            inclusive_left=False,
-                        ):
-                            self._fingers[i] = succ
-            # print_table(self._fingers)
+                # logger.warning("No suitable node found to fix this finger.")
+                continue
+            # else:
+            if self._fingers[self._next] != succ:
+                # logger.info(f"Finger {self._next} updated from {self._fingers[self._next]['addr']} to {succ}.")
+                self._fingers[self._next] = succ
+                # # TODO: optimization need to check for correctness
+                for i in range(self._next + 1, len(self._fingers)):
+                    __id = (self._numeric_id + (2 ** i)) % (2 ** len(self._fingers))
+                    if between(
+                        __id,
+                        self._numeric_id,
+                        succ["numeric_id"],
+                        inclusive_right=False,
+                        inclusive_left=False,
+                    ):
+                        self._fingers[i] = succ
+        # print_table(self._fingers)
 
     @aiomas.expose
     def notify(self, n):
@@ -286,7 +278,7 @@ class Node:
             value (string): The value / data being stored.
             ttl (int): time to live. How long this should remain in the network.
         """
-        logger.info(f"Saving key {key} => {value} in my storage.")
+        # logger.info(f"Saving key {key} => {value} in my storage.")
         return self._storage.put_key(key, value, ttl=ttl)
 
     @aiomas.expose
@@ -307,14 +299,13 @@ class Node:
         for replica in range(1 + self._REPLICATION_COUNT):
             dht_key = generate_id(key)
             numeric_id = int(dht_key, 16)
-            logger.warning(f"Putting Key: {key} - {dht_key} - {numeric_id}")
+            # logger.warning(f"Putting Key: {key} - {dht_key} - {numeric_id}")
             found, next_node = await self.find_successor(numeric_id)
             if not found:
                 continue
-            logger.info(f"putting key {dht_key} on node {next_node['addr']}")
+            # logger.info(f"putting key {dht_key} on node {next_node['addr']}")
             await rpc_save_key(
-                next_node=next_node, key=dht_key, value=value, ttl=ttl, ssl_ctx=self.client_ssl_ctx
-            )
+                next_node=next_node, key=dht_key, value=value, ttl=ttl )
             keys.append(key)
             key = dht_key
         return keys
@@ -333,24 +324,23 @@ class Node:
             Boolean: Whether or not the value is found
             String: Value if one is found.
         """
-        logger.debug(f"Finding key with TTL => {ttl} {key}")
+        # logger.debug(f"Finding key with TTL => {ttl} {key}")
         if ttl <= 0:
             return None
         search_cnt = 1 if is_replica else self._REPLICATION_COUNT + 1
         for idx in range(search_cnt):
             dht_key = generate_id(key)
             numeric_id = int(dht_key, 16)
-            logger.warning(f"Getting Key: {key} - {dht_key} - {numeric_id}")
+            # logger.warning(f"Getting Key: {key} - {dht_key} - {numeric_id}")
             found, value = self._find_key(dht_key)
             if found:
                 return value
             found, node = await self.find_successor(numeric_id)
             if not found:
                 continue
-            logger.debug(f"Getting key from responsible node {node}")
+            # logger.debug(f"Getting key from responsible node {node}")
             res = await rpc_get_key(
-                next_node=node, key=key, ttl=ttl - 1, is_replica=idx > 0, ssl_ctx=self.client_ssl_ctx
-            )
+                next_node=node, key=key, ttl=ttl - 1, is_replica=idx > 0)
             if res:
                 return res
             key = dht_key
@@ -365,7 +355,7 @@ class Node:
             String: Value if one is found.
         """
         value = self._storage.get_key(key)
-        logger.info(f"finding key {key} => {value}")
+        # logger.info(f"finding key {key} => {value}")
         if value is not None:
             return True, value
         # get the succ responsible for the key
@@ -407,16 +397,16 @@ class Node:
             *  _successors: The successors of the current node.
             * _fingers: The finger table.
         """
-        logger.debug("My data, succ and pred")
+        # logger.debug("My data, succ and pred")
         my_data = [{"addr": self._addr, "id": self._id, "numeric_id": self._numeric_id}]
         my_data += [self._successor]
         my_data += [self._predecessor]
         print_table(my_data)
 
-        logger.debug("My Successors")
+        # logger.debug("My Successors")
         print_table(self._successors)
 
-        logger.debug("My Fingers")
+        # logger.debug("My Fingers")
         print_table(self._fingers)
 
     @staticmethod

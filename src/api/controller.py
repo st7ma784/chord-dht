@@ -1,6 +1,5 @@
 import asyncio
 
-from loguru import logger
 
 from .service import ApiService
 
@@ -30,7 +29,6 @@ class ApiController(asyncio.Protocol):
                 (if one exists).
         """
         result = await self.service.process_message(data)
-        logger.debug(f"API Result: {result}")
 
         if not result:
             return self.close_connection()

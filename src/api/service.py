@@ -2,8 +2,6 @@ import struct
 from binascii import unhexlify
 from enum import Enum
 
-from loguru import logger
-
 from chord.node import Node
 
 
@@ -32,11 +30,9 @@ class ApiService:
 
         # check size match
         if sz != len(data):
-            logger.error(f"Message Size mismatch. Payload Size {len(data)}, Expected Size {sz}")
             return False
 
         msg_type = struct.unpack(">H", data[2:4])[0]
-        logger.info(f"Got new message: {msg_type} => {DhtMessageCodes(msg_type)}")
         if msg_type == DhtMessageCodes.DHT_PUT.value:
             await self._process_put(data[4:])
             return
@@ -44,7 +40,6 @@ class ApiService:
         if msg_type == DhtMessageCodes.DHT_GET.value:
             return await self._process_get(data[4:])
 
-        logger.error(f"Invalid message Type. Got {msg_type}.")
         return False
 
     async def _process_get(self, data: bytes):
@@ -78,10 +73,6 @@ class ApiService:
 
         key = data[4:36].hex()
         value = data[36:].hex()
-
-        logger.info(
-            f"Handling put message: Hex Key {key} [TTL {ttl}, replication {replication}] => Hex Value [{value}]"
-        )
         await self.chord_node.put_key(key, value, int(ttl))
 
     @staticmethod
