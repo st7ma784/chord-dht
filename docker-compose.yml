@@ -3,24 +3,14 @@ services:
   bootstrap:
     build:
       context: .
-    command: "sh -c 'python3 -u src/main.py --dht-address bootstrap:6501'"
+    command: "sh -c 'python3 -u src/main.py'"
     ports:
       - 36979:36979
-  node_1:
+  node:
     build:
       context: .
-    command: "sh -c 'python3 -u src/main.py --bootstrap-node bootstrap:6501 --dht-address node_1:6501'"
     depends_on:
       - bootstrap
-  node_2:
-    build:
-      context: .
-    command: "sh -c 'python3 -u src/main.py --bootstrap-node bootstrap:6501 --dht-address node_2:6501'"
-    depends_on:
-      - bootstrap
-  node_3:
-    build:
-      context: .
-    command: "sh -c 'python3 -u src/main.py --bootstrap-node bootstrap:6501 --dht-address node_3:6501'"
-    depends_on:
-      - bootstrap
+    deploy:
+      replicas: 3
+    command: "sh -c 'python3 -u src/main.py --bootstrap_node bootstrap:6501 '"

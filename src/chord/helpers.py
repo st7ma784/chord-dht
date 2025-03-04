@@ -15,7 +15,7 @@ def generate_id(key: Union[bytes, str]) -> str:
 
     key_hash = hashlib.sha1(_key).hexdigest()
     # get first m bits from hash
-    return key_hash[: int(8) // 4]
+    return key_hash[: 8//4]
 
 
 def gen_finger(addr: str):

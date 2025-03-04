@@ -2,3 +2,4 @@ asyncio
 aiomas
 aiohttp
 nest_asyncio
+diskcache

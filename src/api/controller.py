@@ -29,7 +29,7 @@ class ApiController(asyncio.Protocol):
                 (if one exists).
         """
         result = await self.service.process_message(data)
-
+        
         if not result:
             return self.close_connection()
 

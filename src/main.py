@@ -54,10 +54,10 @@ async def _start(args: argparse.Namespace):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--dht-address", help="Address to run the DHT Node on")
-    parser.add_argument("--api-address", help="Address to run the DHT Node on", default=None)
+    parser.add_argument("--dht_address", help="Address to run the DHT Node on", default="{}:6501".format(os.getenv("HOSTNAME", "localhost")))
+    parser.add_argument("--api_address", help="Address to run the DHT Node on", default="{}:8080".format(os.getenv("HOSTNAME", "localhost")))
     parser.add_argument(
-        "--bootstrap-node", help="Start a new Chord Ring if argument no present", default=None,
+        "--bootstrap_node", help="Start a new Chord Ring if argument no present", default=None,
     )
     arguments = parser.parse_args()
     asyncio.run(_start(arguments))
