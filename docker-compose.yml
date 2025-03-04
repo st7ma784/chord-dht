@@ -3,15 +3,23 @@ services:
   bootstrap:
     build:
       context: .
+    image: st7ma784/superdarn_dhtworker:latest
+    labels:
+      - "com.centurylinklabs.watchtower.enable=true"
     command: "sh -c 'python3 -u src/main.py'"
-
+  watchtower:
+    image: containrrr/watchtower
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    command: --interval 30
   node:
     build:
       context: .
+    image: st7ma784/superdarn_dhtworker:latest
+    labels:
+      - "com.centurylinklabs.watchtower.enable=true"
     depends_on:
       - bootstrap
-    ports:
-      - "8001:8010"
     deploy:
       replicas: 6
     command: "sh -c 'python3 -u src/main.py --bootstrap_node bootstrap:6501 '"
