@@ -41,19 +41,21 @@ async def _start(args: argparse.Namespace):
     do_work= loop.create_task(chord_node.worker())
     await chord_node.join(bootstrap_node=args.bootstrap_node)
 
-    chord_rpc_server = await aiomas.rpc.start_server((dht_host, dht_port), chord_node)
 
     api_address = args.api_address
     api_host = api_address.split(":")[0]
     api_port = int(api_address.split(":")[1])
+
+    chord_rpc_server = await aiomas.rpc.start_server((dht_host, dht_port), chord_node)
     api_server = await _start_api_server(api_host, str(api_port), chord_node)
-    async with api_server, chord_rpc_server:
+    
+    async with chord_rpc_server:
         return await asyncio.gather(
-            api_server.serve_forever(),
             loop.run_until_complete(chord_rpc_server.serve_forever()),
             loop.run_until_complete(stabilize_task),
             loop.run_until_complete(fix_fingers_task),
             loop.run_until_complete(check_pred_task),
+            loop.run_until_complete(do_work),
         )
 
 

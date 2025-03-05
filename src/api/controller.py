@@ -4,7 +4,7 @@ from .service import ApiService
 from .job import Job
 
 
-class ApiController:
+class ApiController(asyncio.Protocol):
     """
     This class represent the API controller (The entry class).
     """
