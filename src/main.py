@@ -60,7 +60,10 @@ async def _start(args: argparse.Namespace):
     # ensure api server is running
     runner = aiohttp.web.AppRunner(app)
     await runner.setup()
-    site = aiohttp.web.TCPSite(runner, api_host, int(api_port))
+
+
+
+    run_site=loop.create_task(aiohttp.web.TCPSite(runner, api_host, int(api_port)).start())
 
     async with chord_rpc_server:
         return await asyncio.gather(
@@ -69,7 +72,7 @@ async def _start(args: argparse.Namespace):
             loop.run_until_complete(fix_fingers_task),
             loop.run_until_complete(check_pred_task),
             loop.run_until_complete(do_work),
-            site.start(),
+            loop.run_until_complete(run_site)
         )
 
 
