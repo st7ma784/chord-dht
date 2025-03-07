@@ -8,17 +8,27 @@ import nest_asyncio
 
 from api.controller import ApiController
 from chord.node import Node
+import threading
 
 
-async def _start_api_server(host: str, port: str, chord_node: Node):
+async def _start_api_server(chord_node: Node):
     app = aiohttp.web.Application()
     api_controller = ApiController(chord_node)
     app.add_routes(api_controller.get_routes())
-    runner = aiohttp.web.AppRunner(app)
-    await runner.setup()
-    site = aiohttp.web.TCPSite(runner, host, int(port))
-    await site.start()
-    return runner
+
+
+
+    # runner = aiohttp.web.AppRunner(app)
+    # await runner.setup()
+
+    # site = aiohttp.web.TCPSite(runner, host, int(port))
+    # await site.start()
+    return app
+
+
+
+async def _stop_api_server(runner):
+    await runner.cleanup()
 
 
 async def _start_chord_node(args):
@@ -44,11 +54,14 @@ async def _start(args: argparse.Namespace):
 
     api_address = args.api_address
     api_host = api_address.split(":")[0]
-    api_port = int(api_address.split(":")[1])
+    api_port = api_address.split(":")[1]
+    chord_rpc_server = await aiomas.rpc.start_server((dht_host, int(dht_port)), chord_node)
+    app = await _start_api_server(chord_node)
+    # ensure api server is running
+    runner = aiohttp.web.AppRunner(app)
+    await runner.setup()
+    site = aiohttp.web.TCPSite(runner, api_host, int(api_port))
 
-    chord_rpc_server = await aiomas.rpc.start_server((dht_host, dht_port), chord_node)
-    api_server = await _start_api_server(api_host, str(api_port), chord_node)
-    
     async with chord_rpc_server:
         return await asyncio.gather(
             loop.run_until_complete(chord_rpc_server.serve_forever()),
@@ -56,7 +69,9 @@ async def _start(args: argparse.Namespace):
             loop.run_until_complete(fix_fingers_task),
             loop.run_until_complete(check_pred_task),
             loop.run_until_complete(do_work),
+            site.start(),
         )
+
 
 
 

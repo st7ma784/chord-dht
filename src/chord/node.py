@@ -7,7 +7,8 @@ from chord.storage import Storage
 # from config.config import dht_config
 from minio import Minio
 from typing import Optional
-
+import logging
+logger = logging.getLogger(__name__)
 class Node:
     """
     Class Responsible for Managing a Chord DHT Node.
@@ -19,7 +20,7 @@ class Node:
         self._addr = f"{host}:{port}"
         self._id = generate_id(self._addr.encode("utf-8"))
         self.MinioClient = Minio(
-            os.getenv('MINIO_URL', 'minio:9000'),
+            os.getenv('MINIO_URL', '10.48.163.59:9000'),
             access_key=os.getenv('MINIO_ACCESS_KEY', 'minioadmin'),
             secret_key=os.getenv('MINIO_SECRET_KEY', 'minioadmin'),
             secure=False,
@@ -450,5 +451,6 @@ class Node:
                 job_data = self._storage.get_key(key)
                 if job_data:
                     job = Job.deserialize(job_data)
+                    logger.info(f"Running job {job.id}")
                     await self.run_job(job)
                     

@@ -6,21 +6,22 @@ import pydarn
 import matplotlib.pyplot as plt
 import cv2
 import base64
-
+import logging
 import os
+logger=logging.getLogger(__name__)
 class Tasks:
-    def getFitacfCommand(self, tmpfile, destfile,*args, **kwargs):
-        return "make_fit -fitacf3 {} > {}".format(tmpfile, destfile)
-    def getDespeckCommand(self, tmpfile, destfile,*args, **kwargs):
-        return "fit_speck_removal {} >{}".format(tmpfile, destfile)
-    def getCombineCommand(self, tmpfile, destfile,*args, **kwargs):
-        return " cat {} > {}".format(tmpfile, destfile)
-    def getCombineGridCommand(self, tmpfile, destfile,*args, **kwargs):
-        return "combine_grid {} > {}".format(tmpfile, destfile)
-    def getMakeGridCommand(self, tmpfile, destfile,*args, **kwargs):
-        return "make_grid {} {} > {}".format(tmpfile, destfile, kwargs.get('params', ''))
-    def getMapGrdCommand(self, tmpfile, destfile,*args, **kwargs):
-        return "map_grd {} | map_addhmb | map_addimf -if {} | map_addmodel {} | map_fit > {}".format(tmpfile, kwargs.get('imffilepath', ''), kwargs.get('params', ''), destfile)
+    def getFitacfCommand(self, files, destfile,*args, **kwargs):
+        return "make_fit -fitacf3 {} > {}".format(' '.join(files), destfile)
+    def getDespeckCommand(self, files, destfile,*args, **kwargs):
+        return "fit_speck_removal {} >{}".format(' '.join(files), destfile)
+    def getCombineCommand(self, files, destfile,*args, **kwargs):
+        return " cat {} > {}".format(' '.join(files), destfile)
+    def getCombineGridCommand(self, files, destfile,*args, **kwargs):
+        return "combine_grid {} > {}".format(' '.join(files), destfile)
+    def getMakeGridCommand(self, files, destfile,*args, **kwargs):
+        return "make_grid {} {} > {}".format(' '.join(files), kwargs.get('params', ''),destfile)
+    def getMapGrdCommand(self, files, destfile,*args, **kwargs):
+        return "map_grd {} | map_addhmb | map_addimf -if {} | map_addmodel {} | map_fit > {}".format(' '.join(files), kwargs.get('imffilepath', ''), kwargs.get('params', ''), destfile)
     fitacf = getFitacfCommand
     despeck = getDespeckCommand
     combine = getCombineCommand
@@ -30,14 +31,24 @@ class Tasks:
 
 
 class Job:
+    @staticmethod
+    def deserialize(data):
+        job = Job(data['job_id'], data['data'])
+        job.hash = data['hash']
+        job.status = data['status']
+        job.result = data['result']
+        job.tmpfile = data['tmpfile']
+        job.destfile = data['destfile'] 
+        return job
+
     def __init__(self, job_id, data):
         self.job_id = job_id
-        self.data = data
-        self.hash=hashlib.sha1(data).hexdigest()[: 8//4]
+        self.data = data #data is a request.json()
+        self.hash=hashlib.sha1(str(data).encode()).hexdigest()[: 8//4]
         self.status = 'pending'
         self.result = None
-        self.tmpfile='/dev/shm/{}'.format(self.hash)
-        self.destfile='/dev/shm/{}'.format(self.hash)
+        self.tmpfile='{}'.format(self.hash)
+        self.destfile='{}'.format(self.hash)
         self.switcher = {
             'fitacf': Tasks.fitacf,
             'despeck': Tasks.despeck,
@@ -54,19 +65,56 @@ class Job:
             'make_grid': self.visualiseMakeGrid,
             'map_grd': self.visualiseMapGrd
         }
+
+    def serialize(self):
+        # Serialize the job to a dictionary to be stored in the database
+        return {
+            'job_id': self.job_id,
+            'data': self.data,
+            'hash': self.hash,
+            'tmpfile': self.tmpfile,
+            'destfile': self.destfile,
+            'status': self.status,
+            'result': self.result
+        }
     def run(self,MinioClient):
         # Implement the job logic here
         #from the data, extract objectname, source bucket, dest bucket and task and args
         #download the object
-        MinioClient.fget_object(self.data['source_bucket'], self.data['objectname'], self.tmpfile)
+        logger.info(f"Running job {self.job_id} in job")
+        destfile=os.path.join('/dev/shm/',self.destfile)
+        files=[]
+        for inputfile in self.data["objectname"].split(","):
+            
+            tmpfile=os.path.join('/dev/shm/',self.tmpfile,inputfile)
+                
+            try:
+                MinioClient.fget_object(self.data['source_bucket'], self.data['objectname'], tmpfile)
+                if self.data['objectname'].endswith('.bz2'):
+                    subprocess.run("bzip2 -d {}".format(tmpfile), shell=True)
+                    tmpfile=tmpfile[:-4]
+
+            except Exception as e:
+                tmpfile=os.path.join('./',self.tmpfile)
+                destfile=os.path.join('./',self.destfile)
+                MinioClient.fget_object(self.data['source_bucket'], self.data['objectname'], tmpfile)
+                if self.data['objectname'].endswith('.bz2'):
+                    subprocess.run("bzip2 -d {}".format(tmpfile), shell=True)
+                    tmpfile=tmpfile[:-4]
+                    self.data['objectname']=self.data['objectname'][:-4]
+            files.append(tmpfile)
         if self.data['task'] in self.switcher:
-            cmd = self.switcher[self.data['task']](self.tmpfile, self.destfile, **self.data['args'])
+            cmd = self.switcher[self.data['task']](files, destfile, **self.data['args'])
             subprocess.run(cmd, shell=True)
-        MinioClient.fput_object(self.data['dest_bucket'], self.data['objectname'], self.destfile)
-        self.result = self.VisualiseSwitcher[self.data['task']](self.destfile)
-        os.remove(self.tmpfile)
-        os.remove(self.destfile)
-        self.status = 'completed'
+        
+            MinioClient.fput_object(self.data['dest_bucket'], self.data['objectname'], self.destfile)
+            self.result = self.VisualiseSwitcher[self.data['task']](self.destfile)
+            try:
+                os.remove(self.tmpfile)
+                os.remove(self.destfile)
+            except:
+                pass
+            self.status = 'completed'
 
     def visualiseFitacf(self):
         fitacf_data = pydarn.SuperDARNRead(self.destfile).read_fitacf()

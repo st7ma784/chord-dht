@@ -13,6 +13,4 @@ RUN pip install -r requirements.txt --no-cache-dir
 
 # Copy the rest of the project, so the above is cached if requirements didn't change
 COPY ./ /app/
-EXPOSE 8001
-EXPOSE 6501
 CMD ["python3", "-u", "src/main.py", "--start-api"]
