@@ -13,7 +13,8 @@ class ApiController(asyncio.Protocol):
         self.chord_node = chord_node
         self.jobs = {}
         
-       
+    async def index(self, request):
+        return web.Response(text="Welcome to the API server {}:{}".format(self.chord_node._id,self.chord_node._numeric_id))
     async def add_job(self, request):
         data = await request.json()
         job_id = str(len(self.jobs) + 1)
@@ -39,6 +40,8 @@ class ApiController(asyncio.Protocol):
         return [
             web.post('/jobs', self.add_job),
             web.get('/jobs/{job_id}', self.get_job_status),
+            #add plain index page
+            web.get('/', self.index)
         ]
 
    
