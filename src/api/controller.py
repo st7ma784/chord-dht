@@ -15,6 +15,21 @@ class ApiController(asyncio.Protocol):
         
     async def index(self, request):
         return web.Response(text="Welcome to the API server {}:{}".format(self.chord_node._id,self.chord_node._numeric_id))
+    
+    async def test_minio(self, request):
+        logger.info("Testing Minio")
+        bucket_name = "test"
+        object_name = "test.txt"
+        data = "Hello World from node {}".format(self.chord_node._id)
+
+        buckets=self.chord_node.MinioClient.list_buckets()
+        logger.info("Buckets: {}".format(buckets))
+        if bucket_name not in buckets:
+            self.chord_node.MinioClient.make_bucket(bucket_name)
+            logger.info("Bucket {} created".format(bucket_name))
+
+        return web.Response(text="Test Minio Done from node {} \n {}".format(self.chord_node._id,buckets))
+    
     async def add_job(self, request):
         data = await request.json()
         job_id = str(len(self.jobs) + 1)
@@ -41,7 +56,8 @@ class ApiController(asyncio.Protocol):
             web.post('/jobs', self.add_job),
             web.get('/jobs/{job_id}', self.get_job_status),
             #add plain index page
-            web.get('/', self.index)
+            web.get('/', self.index),
+            web.get('/test', self.test_minio)
         ]
 
    
