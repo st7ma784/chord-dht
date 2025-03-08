@@ -20,9 +20,10 @@ class Storage:
         secret_key = os.environ.get("SEC_KEY", self.node_id)
         return hmac.new(secret_key.encode("utf-8"), message, hashlib.sha256,).hexdigest()
 
-    def __init__(self, node_id: str):
+    def __init__(self, node):
         self._store = Cache("./chord_data")
-        self.node_id = node_id
+        self.node= node
+        self.node_id = self.node._id
 
     def get_key(self, key: str):
         """
@@ -108,7 +109,7 @@ class Storage:
             # logger.debug(
             #     f"{key} - ({left}, {right}) => {between(int(key, 16), left, right, inclusive_left=False, inclusive_right=False)}"
             # )
-            if between(int(key, 16), left, right, inclusive_left=False, inclusive_right=False):
+            if between(int(key, 16), left, right, inclusive_left=False, inclusive_right=False, ring_sz=self.node.ring_sz):
                 val = self.get_key(key)
                 if val:
                     keys.append(key)

@@ -22,13 +22,15 @@ class Tasks:
         return "make_grid {} {} > {}".format(' '.join(files), kwargs.get('params', ''),destfile)
     def getMapGrdCommand(self, files, destfile,*args, **kwargs):
         return "map_grd {} | map_addhmb | map_addimf -if {} | map_addmodel {} | map_fit > {}".format(' '.join(files), kwargs.get('imffilepath', ''), kwargs.get('params', ''), destfile)
+    def runCommand(self, files, destfile,*args, **kwargs):
+        return " ".join(args)
     fitacf = getFitacfCommand
     despeck = getDespeckCommand
     combine = getCombineCommand
     combine_grid = getCombineGridCommand
     make_grid = getMakeGridCommand
     map_grd = getMapGrdCommand
-
+    test=runCommand
 
 class Job:
     @staticmethod
@@ -55,7 +57,8 @@ class Job:
             'combine': Tasks.combine,
             'combine_grid': Tasks.combine_grid,
             'make_grid': Tasks.make_grid,
-            'map_grd': Tasks.map_grd
+            'map_grd': Tasks.map_grd,
+            'test': Tasks.test
         }
         self.VisualiseSwitcher={
             'fitacf': self.visualiseFitacf,
@@ -64,7 +67,10 @@ class Job:
             'combine_grid': self.visualiseCombineGrid,
             'make_grid': self.visualiseMakeGrid,
             'map_grd': self.visualiseMapGrd
+            
         }
+        if self.data['task'] == 'test':
+            self.run= self.run_test
 
     def serialize(self):
         # Serialize the job to a dictionary to be stored in the database
@@ -77,10 +83,16 @@ class Job:
             'status': self.status,
             'result': self.result
         }
-    def run(self,MinioClient):
+    
+    def run_test(self,node):
+        cmd = self.switcher[self.data['task']]([], [], **self.data['args']) + " && echo 'Running from DHT on node {}'".format(self.data['task'],node._id)
+        subprocess.run(cmd, shell=True)
+
+    def run(self,node):
         # Implement the job logic here
         #from the data, extract objectname, source bucket, dest bucket and task and args
         #download the object
+        MinioClient=node.MinioClient
         logger.info(f"Running job {self.job_id} in job")
         destfile=os.path.join('/dev/shm/',self.destfile)
         files=[]
@@ -108,13 +120,14 @@ class Job:
             subprocess.run(cmd, shell=True)
         
             MinioClient.fput_object(self.data['dest_bucket'], self.data['objectname'], self.destfile)
+        if self.data['task'] in self.VisualiseSwitcher:
             self.result = self.VisualiseSwitcher[self.data['task']](self.destfile)
-            try:
-                os.remove(self.tmpfile)
-                os.remove(self.destfile)
-            except:
-                pass
-            self.status = 'completed'
+        try:
+            os.remove(self.tmpfile)
+            os.remove(self.destfile)
+        except:
+            pass
+        self.status = 'completed'
 
     def visualiseFitacf(self):
         fitacf_data = pydarn.SuperDARNRead(self.destfile).read_fitacf()

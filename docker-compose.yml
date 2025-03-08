@@ -23,7 +23,7 @@ services:
     environment:
       - MINIO_URL=10.48.163.59:9000
     deploy:
-      replicas: 4
+      replicas: 8
 
     command: "sh -c 'python3 -u src/main.py --bootstrap_node bootstrap:6501 '"
 

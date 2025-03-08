@@ -18,15 +18,16 @@ class Node:
 
     def __init__(self, host: str, port: str):
         self._addr = f"{host}:{port}"
-        self._id = generate_id(self._addr.encode("utf-8"))
         self.MinioClient = Minio(
             os.getenv('MINIO_URL', '10.48.163.59:9000'),
             access_key=os.getenv('MINIO_ACCESS_KEY', 'minioadmin'),
             secret_key=os.getenv('MINIO_SECRET_KEY', 'minioadmin'),
             secure=False,
         )
-        ring_sz = 2 ** (int(8))
-        self._numeric_id = int(self._id, 16) % ring_sz
+        self.ring_sz = 2 ** (int(8))
+        self.key_sz = 8 //4
+        self._id = generate_id(self._addr.encode("utf-8"), keysize=self.key_sz)
+        self._numeric_id = int(self._id, 16) % self.ring_sz
 
         self._MAX_STEPS = int(4)
         self._MAX_SUCC = int(1)
@@ -39,7 +40,7 @@ class Node:
         self._predecessor = None
         self._successor = None
 
-        self._storage = Storage(node_id=self._id)
+        self._storage = Storage(node=self)
 
         # for stabilization
         self._successors = [None for _ in range(self._MAX_SUCC)]
@@ -57,8 +58,8 @@ class Node:
         Generate empty finger table with my address as fingers.
         """
         addr = self._successor["addr"] if self._successor else self._addr
-        _id = generate_id(addr.encode("utf-8"))
-        for i in range(int(8)):
+        _id = generate_id(addr.encode("utf-8"), keysize=self.key_sz)
+        for i in range(len(self._fingers)):
             self._fingers[i] = {"addr": addr, "id": _id, "numeric_id": int(_id, 16)}
 
         self._successor = self._fingers[0]
@@ -72,7 +73,7 @@ class Node:
         else:
             if self._successor is None:
                 _, self._successor = await rpc_ask_for_succ(
-                    gen_finger(bootstrap_node), self._numeric_id
+                    gen_finger(bootstrap_node,self.ring_sz), self._numeric_id
                 )
                 self._init_empty_fingers()
                 # get keys from succ
@@ -109,6 +110,7 @@ class Node:
                     numeric_id,
                     inclusive_left=False,
                     inclusive_right=False,
+                    ring_sz=self.ring_sz,
                 ):
                     # logger.info(
                     #     f"Using finger {i} => {self._fingers[i]} {numeric_id} is between ({self._fingers[i]['numeric_id']},{self._numeric_id}]")
@@ -133,7 +135,8 @@ class Node:
             self._successor["numeric_id"],
             inclusive_left=False,
             inclusive_right=True,
-        )
+            ring_sz=self.ring_sz,
+       )
         # logger.debug(f"Finding succ for: {_numeric_id} using node {self._numeric_id}: {is_bet}")
         if is_bet:
             return True, self._successor
@@ -206,6 +209,7 @@ class Node:
                         self._successor["numeric_id"],
                         inclusive_right=False,
                         inclusive_left=False,
+                        ring_sz=self.ring_sz,
                     ):
                         self._successor = pred.copy()
                         self._fingers[0] = self._successor
@@ -256,6 +260,7 @@ class Node:
                         succ["numeric_id"],
                         inclusive_right=False,
                         inclusive_left=False,
+                        ring_sz=self.ring_sz,
                     ):
                         self._fingers[i] = succ
         # print_table(self._fingers)
@@ -273,6 +278,7 @@ class Node:
             self._numeric_id,
             inclusive_left=False,
             inclusive_right=False,
+            ring_sz=self.ring_sz,
         ):
             self._predecessor = n
 
@@ -304,7 +310,7 @@ class Node:
         # generate multiple dht keys for each each
         keys = []
         for replica in range(1 + self._REPLICATION_COUNT):
-            dht_key = generate_id(key)
+            dht_key = generate_id(key, keysize=self.key_sz)
             numeric_id = int(dht_key, 16)
             # logger.warning(f"Putting Key: {key} - {dht_key} - {numeric_id}")
             found, next_node = await self.find_successor(numeric_id)
@@ -336,7 +342,7 @@ class Node:
             return None
         search_cnt = 1 if is_replica else self._REPLICATION_COUNT + 1
         for idx in range(search_cnt):
-            dht_key = generate_id(key)
+            dht_key = generate_id(key, keysize=self.key_sz)
             numeric_id = int(dht_key, 16)
             # logger.warning(f"Getting Key: {key} - {dht_key} - {numeric_id}")
             found, value = self._find_key(dht_key)
@@ -389,6 +395,8 @@ class Node:
             self._numeric_id,
             inclusive_right=False,
             inclusive_left=False,
+            ring_sz=self.ring_sz,
+
         ):
             return [], []
 
@@ -436,7 +444,7 @@ class Node:
         return await self.put_key(key, value, ttl)
 
     async def run_job(self, job):
-        return job.run(self.minioClient)
+        return job.run(self)
         # Logic to return the result to the requester
 
     async def worker(self):

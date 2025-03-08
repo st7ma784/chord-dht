@@ -19,9 +19,7 @@ class ApiController(asyncio.Protocol):
     async def test_minio(self, request):
         logger.info("Testing Minio")
         bucket_name = "test"
-        object_name = "test.txt"
-        data = "Hello World from node {}".format(self.chord_node._id)
-
+        
         buckets=self.chord_node.MinioClient.list_buckets()
         logger.info("Buckets: {}".format(buckets))
         if bucket_name not in buckets:
@@ -30,6 +28,21 @@ class ApiController(asyncio.Protocol):
 
         return web.Response(text="Test Minio Done from node {} \n {}".format(self.chord_node._id,buckets))
     
+    async def test_DHT(self, request):
+        logger.info("Testing DHT")
+        tasknm = "test"
+        job_id = str(len(self.jobs) + 1)
+        code_to_run = "echo 'Hello from DHT jobid {} launched from on node {}'".format(tasknm,self.chord_node._id)
+        data={"task":tasknm,"args":code_to_run}
+        job = Job(job_id, data)
+        self.jobs[job_id] = job
+        # Logic to move job to relevant worker
+        logger.info(f"Adding job {job_id} to chord node")
+        await self.chord_node.put_job(job,ttl=10)
+        logger.info("Job {} added to chord".format(job_id)) 
+        return web.Response(text="Test DHT Done from node {} \n {}".format(self.chord_node._id,job_id))
+
+
     async def add_job(self, request):
         data = await request.json()
         job_id = str(len(self.jobs) + 1)
@@ -57,7 +70,8 @@ class ApiController(asyncio.Protocol):
             web.get('/jobs/{job_id}', self.get_job_status),
             #add plain index page
             web.get('/', self.index),
-            web.get('/test', self.test_minio)
+            web.get('/test', self.test_minio),
+            web.get('/test_dht', self.test_DHT)
         ]
 
    
