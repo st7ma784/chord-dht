@@ -2,7 +2,7 @@ FROM st7ma784/superdarn_rstbase:latest
 
 # Install dependencies
 #RUN apt install libffi-dev openssl-dev build-base python3-dev git
-RUN apt-get update
+
 RUN apt-get install -y build-essential
 
 # Install python dependencies
