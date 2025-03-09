@@ -6,6 +6,7 @@ import pydarn
 import matplotlib.pyplot as plt
 import cv2
 import base64
+import json
 import logging
 import os
 logger=logging.getLogger(__name__)
@@ -34,7 +35,11 @@ class Tasks:
 
 class Job:
     @staticmethod
-    def deserialize(data):
+    def deserialize(string):
+        # Deserialize the job from a string stored in the database
+        #convert string to json and then to dictionary
+        data = json.loads(string)    
+
         job = Job(data['job_id'], data['data'])
         job.hash = data['hash']
         job.status = data['status']
@@ -46,7 +51,7 @@ class Job:
     def __init__(self, job_id, data):
         self.job_id = job_id
         self.data = data #data is a request.json()
-        self.hash=hashlib.sha1(str(data).encode()).hexdigest()[: 8//4]
+        self.hash=hashlib.sha1(str(data).encode()).hexdigest()
         self.status = 'pending'
         self.result = None
         self.tmpfile='{}'.format(self.hash)
@@ -73,8 +78,8 @@ class Job:
             self.run= self.run_test
 
     def serialize(self):
-        # Serialize the job to a dictionary to be stored in the database
-        return {
+        # Serialize the job to a string to be stored in the database
+        dictionary =  {
             'job_id': self.job_id,
             'data': self.data,
             'hash': self.hash,
@@ -83,10 +88,19 @@ class Job:
             'status': self.status,
             'result': self.result
         }
+        #convert dictionary to json, and dump to string
+        text = json.dumps(dictionary)
+        logger.info(f"Serialized job {self.job_id} to {text}")
+        return text
+
     
     def run_test(self,node):
-        cmd = self.switcher[self.data['task']]([], [], **self.data['args']) + " && echo 'Running from DHT on node {}'".format(self.data['task'],node._id)
-        subprocess.run(cmd, shell=True)
+        cmd = self.switcher[self.data['task']]([], [], *self.data['args'])  
+
+        os.system(cmd)
+        os.system(" echo 'Running {} from DHT on node {}'".format(self.data['task'],node._id))
+        self.status = 'completed'
+        return 'completed'
 
     def run(self,node):
         # Implement the job logic here
@@ -128,6 +142,7 @@ class Job:
         except:
             pass
         self.status = 'completed'
+        return self.result
 
     def visualiseFitacf(self):
         fitacf_data = pydarn.SuperDARNRead(self.destfile).read_fitacf()

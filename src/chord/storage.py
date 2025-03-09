@@ -1,7 +1,6 @@
 import hashlib
 import hmac
 import os
-from binascii import unhexlify
 from typing import List
 
 from diskcache import Cache
@@ -37,7 +36,7 @@ class Storage:
         try:
             value, tag = self._store.get(f"{key}", tag=True)
             if value:
-                _val_bytes = unhexlify(value)
+                _val_bytes = value.encode("utf-8")
                 # logger.debug(f"Got {value} with digest {tag} - {self.make_digest(_val_bytes)}")
                 if tag != self.make_digest(_val_bytes):
                     return None
@@ -54,7 +53,8 @@ class Storage:
                 value (string): The value / data being stored.
                 ttl (int): time to live. How long this should remain in the network.
         """
-        _byte_val = unhexlify(value)
+        #convert value to bytes 
+        _byte_val = value.encode("utf-8")
         # logger.debug(f"Saving Key: {key} with ttl {ttl}secs")
         try:
             return self._store.set(key, value=value, expire=ttl, tag=self.make_digest(_byte_val))

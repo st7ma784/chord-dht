@@ -15,14 +15,6 @@ async def _start_api_server(chord_node: Node):
     app = aiohttp.web.Application()
     api_controller = ApiController(chord_node)
     app.add_routes(api_controller.get_routes())
-
-
-
-    # runner = aiohttp.web.AppRunner(app)
-    # await runner.setup()
-
-    # site = aiohttp.web.TCPSite(runner, host, int(port))
-    # await site.start()
     return app
 
 
@@ -44,12 +36,15 @@ async def _start(args: argparse.Namespace):
     nest_asyncio.apply()
 
     dht_host, dht_port, chord_node = await _start_chord_node(args)
+    await chord_node.join(bootstrap_node=args.bootstrap_node)
+
     loop = asyncio.get_event_loop()
     stabilize_task = loop.create_task(chord_node.stabilize())
     fix_fingers_task = loop.create_task(chord_node.fix_fingers())
     check_pred_task = loop.create_task(chord_node.check_predecessor())
+    fix_successor_task = loop.create_task(chord_node.fix_successor_list())
     do_work= loop.create_task(chord_node.worker())
-    await chord_node.join(bootstrap_node=args.bootstrap_node)
+
 
 
     api_address = args.api_address
@@ -72,6 +67,7 @@ async def _start(args: argparse.Namespace):
             loop.run_until_complete(fix_fingers_task),
             loop.run_until_complete(check_pred_task),
             loop.run_until_complete(do_work),
+            loop.run_until_complete(fix_successor_task),
             loop.run_until_complete(run_site)
         )
 
@@ -80,6 +76,8 @@ async def _start(args: argparse.Namespace):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
+
+    import os
     parser.add_argument("--dht_address", help="Address to run the DHT Node on", default="{}:6501".format(os.getenv("HOSTNAME", "localhost")))
     parser.add_argument("--api_address", help="Address to run the DHT Node on", default="{}:8001".format(os.getenv("HOSTNAME", "localhost")))
     parser.add_argument(

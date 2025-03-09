@@ -18,11 +18,11 @@ def generate_id(key: Union[bytes, str],keysize= 8//4) -> str:
     return key_hash[: keysize]
 
 
-def gen_finger(addr: str,ring_sz: int) -> dict:
+def gen_finger(addr: str,ring_sz: int,keysize:int) -> dict:
     """
     Generate an entry in the finger table.
     """
-    _id = generate_id(addr.encode("utf-8"))
+    _id = generate_id(addr.encode("utf-8"),keysize=keysize)
     return {"addr": addr, "id": _id, "numeric_id": int(_id, 16) % ring_sz}
 
 
@@ -47,11 +47,12 @@ def print_table(dict_arr, col_list=None):
     """
     if not col_list:
         col_list = list(dict_arr[0].keys() if dict_arr else [])
-    _list = [col_list]  # 1st row = header
+    _list = []  # 1st row = header
     for item in dict_arr:
         if item is not None:
-            _list.append([str(item[col] or "") for col in col_list])
-
+            _list.append(tuple([str(item[col] or "") for col in col_list]))
+    _list=list(set(_list))
+    _list=[col_list]+_list
     # Maximum size of the col for each element
     col_sz = [max(map(len, col)) for col in zip(*_list)]
     # Insert Separating line before every line, and extra one for ending.

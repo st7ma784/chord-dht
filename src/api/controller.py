@@ -17,43 +17,41 @@ class ApiController(asyncio.Protocol):
         return web.Response(text="Welcome to the API server {}:{}".format(self.chord_node._id,self.chord_node._numeric_id))
     
     async def test_minio(self, request):
-        logger.info("Testing Minio")
+        print("Testing Minio")
         bucket_name = "test"
         
         buckets=self.chord_node.MinioClient.list_buckets()
-        logger.info("Buckets: {}".format(buckets))
+        print("Buckets: {}".format(buckets))
         if bucket_name not in buckets:
             self.chord_node.MinioClient.make_bucket(bucket_name)
-            logger.info("Bucket {} created".format(bucket_name))
+            print("Bucket {} created".format(bucket_name))
 
         return web.Response(text="Test Minio Done from node {} \n {}".format(self.chord_node._id,buckets))
     
     async def test_DHT(self, request):
-        logger.info("Testing DHT")
+        print("Testing DHT")
         tasknm = "test"
         job_id = str(len(self.jobs) + 1)
         code_to_run = "echo 'Hello from DHT jobid {} launched from on node {}'".format(tasknm,self.chord_node._id)
-        data={"task":tasknm,"args":code_to_run}
+        data={"task":tasknm,"args":[code_to_run]}
         job = Job(job_id, data)
         self.jobs[job_id] = job
         # Logic to move job to relevant worker
-        logger.info(f"Adding job {job_id} to chord node")
-        await self.chord_node.put_job(job,ttl=10)
-        logger.info("Job {} added to chord".format(job_id)) 
-        return web.Response(text="Test DHT Done from node {} \n {}".format(self.chord_node._id,job_id))
+        response= await self.chord_node.put_job(job,ttl=3600)
+        return web.Response(text="Test DHT web request processed from node {} \n given jobid: {} landing on nodes {}".format(self.chord_node._id,job_id, response))
 
 
     async def add_job(self, request):
         data = await request.json()
         job_id = str(len(self.jobs) + 1)
-        logger.info("received job request {}".format(data))
+        print("received job request {}".format(data))
         job = Job(job_id, data)
         self.jobs[job_id] = job
         # Logic to move job to relevant worker
-        logger.info(f"Adding job {job_id} to chord node")
+        print(f"Adding job {job_id} to chord node")
 
-        await self.chord_node.put_job(job,ttl=10)
-        logger.info("Job {} added to chord".format(job_id))
+        await self.chord_node.put_job(job)
+        print("Job {} added to chord".format(job_id))
         return web.json_response({'job_id': job_id})
 
     async def get_job_status(self, request):

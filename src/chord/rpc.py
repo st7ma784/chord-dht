@@ -1,11 +1,12 @@
-import ssl
+# Description: This file contains the rpc procedures that are used to communicate with other nodes in the network.
 from typing import Optional, List
 
 import aiomas
 # from loguru import logger
 
 from chord.helpers import gen_finger
-
+import logging
+logger = logging.getLogger(__name__)
 
 ######################
 # RPC Procedures
@@ -32,7 +33,7 @@ async def rpc_ask_for_succ(
         await rpc_con.close()
         return found, rep
     except Exception as e:
-        # logger.error(e, next_node, numeric_id)
+        #logger.error(e, next_node, numeric_id)
         return False, None
 
 
@@ -46,10 +47,14 @@ async def rpc_ask_for_pred_and_succlist(addr: str) -> (dict, List):
           (array): The list of successors
     """
     host, port = addr.split(":")
-    rpc_con = await aiomas.rpc.open_connection((host, port))
-    rep = await rpc_con.remote.get_pred_and_succlist()
-    await rpc_con.close()
-    return rep
+    try:
+        rpc_con = await aiomas.rpc.open_connection((host, port))
+        rep = await rpc_con.remote.get_pred_and_succlist()
+        await rpc_con.close()
+        return rep
+    except Exception as e:
+        #logger.error(e)
+        return None, None
 
 
 async def rpc_ping(addr: str) -> bool:
@@ -68,11 +73,11 @@ async def rpc_ping(addr: str) -> bool:
         await rpc_con.close()
         return rep == "pong"
     except Exception as e:
-        # logger.error(e)
+        #logger.error(e)
         return False
 
 
-async def rpc_notify(succ_addr: str, my_addr: str) -> None:
+async def rpc_notify(succ_addr: str, my_addr: str, ring_sz: int, keysize: int) -> None:
     """
     Notifies nodes that the calling node  is now their predecessor.
     Args:
@@ -82,10 +87,10 @@ async def rpc_notify(succ_addr: str, my_addr: str) -> None:
     try:
         host, port = succ_addr.split(":")
         rpc_con = await aiomas.rpc.open_connection((host, port))
-        await rpc_con.remote.notify(gen_finger(my_addr))
+        await rpc_con.remote.notify(gen_finger(my_addr, ring_sz=ring_sz, keysize=keysize))
         await rpc_con.close()
     except Exception as e:
-
+        print(e)
         pass
 
 async def rpc_get_key(
@@ -109,11 +114,11 @@ async def rpc_get_key(
         host, port = next_node["addr"].split(":")
         rpc_con = await aiomas.rpc.open_connection((host, port))
         rep = await rpc_con.remote.find_key(key, ttl, is_replica=is_replica)
-        # logger.info("response from node =>", rep)
+        #print("response from node =>", rep)
         await rpc_con.close()
         return rep
     except Exception as e:
-        # logger.error(e)
+        #logger.error(e)
         return None
 
 
@@ -135,7 +140,7 @@ async def rpc_save_key(
         await rpc_con.close()
         return rep
     except Exception as e:
-        # logger.error(e)
+        print(e)
         return None
 
 
@@ -157,7 +162,7 @@ async def rpc_put_key(next_node: dict, key: str, value: str) -> Optional[str]:
         await rpc_con.close()
         return rep
     except Exception as e:
-        # logger.error(e)
+        logger.error(e)
         return None
 
 
@@ -179,5 +184,5 @@ async def rpc_get_all_keys(next_node: dict, node_id: int):
         await rpc_con.close()
         return rep
     except Exception as e:
-        # logger.error(e)
+        #logger.error(e)
         return None

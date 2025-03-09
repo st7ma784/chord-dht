@@ -24,17 +24,17 @@ class Node:
             secret_key=os.getenv('MINIO_SECRET_KEY', 'minioadmin'),
             secure=False,
         )
-        self.ring_sz = 2 ** (int(8))
-        self.key_sz = 8 //4
+        self.ring_sz = 2 ** (int(16))
+        self.key_sz = 16 //4
         self._id = generate_id(self._addr.encode("utf-8"), keysize=self.key_sz)
         self._numeric_id = int(self._id, 16) % self.ring_sz
 
-        self._MAX_STEPS = int(4)
-        self._MAX_SUCC = int(1)
-        self._REPLICATION_COUNT = 3
+        self._MAX_STEPS = int(6)
+        self._MAX_SUCC = int(3)
+        self._REPLICATION_COUNT = 1
 
         self._fingers = [
-            {"addr": "", "id": "", "numeric_id": -1} for _ in range(8)
+            {"addr": "", "id": "", "numeric_id": -1} for _ in range(self.key_sz)
         ]
 
         self._predecessor = None
@@ -67,13 +67,13 @@ class Node:
 
     async def join(self, bootstrap_node: Optional[str]):
         # Create a new ring if no bootstrap node is given
-        if not bootstrap_node:
+        if not bootstrap_node or bootstrap_node == self._addr or bootstrap_node == "None" or bootstrap_node == os.getenv("HOSTNAME", "localhost"):
             # logger.debug("Bootstrap node initialized...")
             self._create()
         else:
             if self._successor is None:
                 _, self._successor = await rpc_ask_for_succ(
-                    gen_finger(bootstrap_node,self.ring_sz), self._numeric_id
+                    gen_finger(bootstrap_node,self.ring_sz,self.key_sz), self._numeric_id
                 )
                 self._init_empty_fingers()
                 # get keys from succ
@@ -112,7 +112,7 @@ class Node:
                     inclusive_right=False,
                     ring_sz=self.ring_sz,
                 ):
-                    # logger.info(
+                    # print(
                     #     f"Using finger {i} => {self._fingers[i]} {numeric_id} is between ({self._fingers[i]['numeric_id']},{self._numeric_id}]")
                     return self._fingers[i]
         return self._successor
@@ -167,7 +167,7 @@ class Node:
     ##################################
 
     async def check_predecessor(self):
-        _fix_interval = int(1)
+        _fix_interval = 1
         while True:
             await asyncio.sleep(_fix_interval)
             if self._predecessor:
@@ -191,13 +191,13 @@ class Node:
         """
         # if succ not yet set don't run stabilize
         _fix_interval = 1
-        print_interval = 60
+        print_interval = 2000
         time_since_last_print = print_interval
         while True:
             await asyncio.sleep(_fix_interval)
             if not self._successor:
                 continue
-            # logger.info("Stabilizing the network")
+            # print("Stabilizing the network")
             try:
                 pred, succ_list = await rpc_ask_for_pred_and_succlist(
                     self._successor["addr"]
@@ -214,14 +214,14 @@ class Node:
                         self._successor = pred.copy()
                         self._fingers[0] = self._successor
                 self._successors = [self._successor] + succ_list[:-1]
-                await rpc_notify(self._successor["addr"], self._addr)
+                await rpc_notify(self._successor["addr"], self._addr, self.ring_sz, self.key_sz)
             except Exception as e:
                 # logger.error(e)
                 # logger.error("Succ is no longer working switch to next succ.")
-                # logger.info(self._successor)
+                # print(self._successor)
                 self._successors = self._successors[1:]
                 if len(self._successors) == 0:
-                    self._successors.append(gen_finger(self._addr))
+                    self._successors.append(gen_finger(self._addr,self.key_sz))
                     self._successor = self._successors[0].copy()
                 else:
                     self._successor = self._successors[0].copy()
@@ -231,7 +231,7 @@ class Node:
             if time_since_last_print <= 0:
                 time_since_last_print = print_interval
                 self.dump_me()
-            # logger.info(f"Sleeping for {SECS_TO_WAIT} secs before stabilizing again")
+            # print(f"Sleeping for {SECS_TO_WAIT} secs before stabilizing again")
 
     async def fix_fingers(self):
         """
@@ -243,27 +243,64 @@ class Node:
             self._next = (self._next + 1) % len(self._fingers)
             next_id = (self._numeric_id + (2 ** self._next)) % (2 ** len(self._fingers))
             found, succ = await self.find_successor(next_id)
-            # logger.info(f"Result for fixing finger {self._next} {next_id} => {found} {succ}")
             if not found:
-                # logger.warning("No suitable node found to fix this finger.")
+                logger.warning("No suitable node found to fix this finger.")
                 continue
             # else:
             if self._fingers[self._next] != succ:
-                # logger.info(f"Finger {self._next} updated from {self._fingers[self._next]['addr']} to {succ}.")
+                print(f"Finger {self._next} updated from {self._fingers[self._next]['addr']} to {succ}.")
                 self._fingers[self._next] = succ
-                # # TODO: optimization need to check for correctness
-                for i in range(self._next + 1, len(self._fingers)):
-                    __id = (self._numeric_id + (2 ** i)) % (2 ** len(self._fingers))
-                    if between(
-                        __id,
-                        self._numeric_id,
-                        succ["numeric_id"],
-                        inclusive_right=False,
-                        inclusive_left=False,
-                        ring_sz=self.ring_sz,
-                    ):
-                        self._fingers[i] = succ
-        # print_table(self._fingers)
+
+    async def fix_successor(self):
+        """
+        Updates the successor of the current node.
+        """
+        _fix_interval = 1
+        while True:
+            await asyncio.sleep(_fix_interval)
+            if not self._successor:
+                continue
+            found, succ = await rpc_ask_for_succ(
+                self._successor["addr"], self._numeric_id
+            )
+            if not found:
+                continue
+            if succ != self._successor:
+                self._successor = succ
+                # print(f"Successor updated to {succ}")
+
+    async def fix_successor_list(self):    
+            
+        _fix_interval = 1
+        while True:
+            await asyncio.sleep(_fix_interval)
+            if not self._successor:
+                continue
+            for i in range(len(self._successors)):
+                if i == 0:
+                    continue
+                if not self._successors[i]:
+                    continue
+                if not between(
+                    self._successors[i]["numeric_id"],
+                    self._numeric_id,
+                    self._successor["numeric_id"],
+                    inclusive_right=False,
+                    inclusive_left=False,
+                    ring_sz=self.ring_sz,
+                ):
+                    self._successors[i] = self._successor
+                    continue
+                found, succ = await rpc_ask_for_succ(
+                    self._successors[i]["addr"], self._numeric_id
+                )
+                if not found:
+                    continue
+                if succ != self._successors[i]:
+                    self._successors[i] = succ
+                    # print(f"Successor {i} updated to {succ}")
+            # print_table(self._successors)
+
 
     @aiomas.expose
     def notify(self, n):
@@ -281,6 +318,7 @@ class Node:
             ring_sz=self.ring_sz,
         ):
             self._predecessor = n
+            print(f"New predecessor {self._predecessor}")
 
     @aiomas.expose
     def save_key(self, key: str, value: str, ttl: int):
@@ -291,11 +329,11 @@ class Node:
             value (string): The value / data being stored.
             ttl (int): time to live. How long this should remain in the network.
         """
-        # logger.info(f"Saving key {key} => {value} in my storage.")
+        print(f"Saving key {key} => {value} in my storage.")
         return self._storage.put_key(key, value, ttl=ttl)
 
     @aiomas.expose
-    async def put_key(self, key: str, value: str, ttl: int):
+    async def put_key(self, key: str, value: str, ttl: int = 4):
         """
         Generates multiple dht keys for each value for replication.
         Finds the node based on the key, where the value should be stored.
@@ -314,11 +352,9 @@ class Node:
             numeric_id = int(dht_key, 16)
             # logger.warning(f"Putting Key: {key} - {dht_key} - {numeric_id}")
             found, next_node = await self.find_successor(numeric_id)
-            if not found:
-                continue
-            # logger.info(f"putting key {dht_key} on node {next_node['addr']}")
+            print(f"putting key {dht_key} on node {next_node['addr']}")
             await rpc_save_key(
-                next_node=next_node, key=dht_key, value=value, ttl=ttl )
+                next_node=next_node, key=dht_key, value=value,ttl=4)
             keys.append(key)
             key = dht_key
         return keys
@@ -368,7 +404,7 @@ class Node:
             String: Value if one is found.
         """
         value = self._storage.get_key(key)
-        # logger.info(f"finding key {key} => {value}")
+        # print(f"finding key {key} => {value}")
         if value is not None:
             return True, value
         # get the succ responsible for the key
@@ -430,7 +466,7 @@ class Node:
 
 
     @aiomas.expose
-    async def put_job(self, job, ttl: int):
+    async def put_job(self, job,ttl:int=4):
         """
         Stores a job in the DHT.
         Args:
@@ -439,9 +475,11 @@ class Node:
         Returns:
             keys (list): The updated list of keys.
         """
-        key = job.hash
+        print(f"Putting job {job.job_id} in the DHT")
+        key = job.hash[:self.key_sz]
         value = job.serialize()
-        return await self.put_key(key, value, ttl)
+        #convert value dict to string
+        return await self.put_key(key, value, ttl=ttl)
 
     async def run_job(self, job):
         return job.run(self)
@@ -452,13 +490,20 @@ class Node:
         Worker to run through jobs stored in the DHT.
         """
         _fix_interval = 1
+        print(f"Worker {self._addr} started")
+    
         while True:
-            await asyncio.sleep(_fix_interval)
-            keys = self._storage.get_all_keys()
-            for key in keys:
-                job_data = self._storage.get_key(key)
-                if job_data:
+            try:
+                await asyncio.sleep(_fix_interval)
+                keys,values = self._storage.get_my_data()
+                for key, value in zip(keys, values):
+                    job_data = value
                     job = Job.deserialize(job_data)
-                    logger.info(f"Running job {job.id}")
-                    await self.run_job(job)
-                    
+                    if job.status == "completed":
+                        continue
+                    print(f"Running job {job.job_id}")
+                    result=await self.run_job(job)
+                    self._storage.put_key(key, job.serialize())
+            except Exception as e:
+                print(e)
+                pass
