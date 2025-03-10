@@ -62,11 +62,24 @@ class ApiController(asyncio.Protocol):
         else:
             return web.json_response({'error': 'Job not found'}, status=404)
 
+    async def submit_buckets(self, request):
+        data = await request.json()
+        print("received bucket request {}".format(data))
+        job_id = str(len(self.jobs) + 1)
+        job = Job(job_id, data)
+        self.jobs[job_id] = job
+        # Logic to move job to relevant worker
+        print(f"Adding job {job_id} to chord node")
+        await self.chord_node.put_job(job)
+        print("Job {} added to chord".format(job_id))
+        return web.json_response({'job_id': job_id})
+
     def get_routes(self):
         return [
             web.post('/jobs', self.add_job),
             web.get('/jobs/{job_id}', self.get_job_status),
             #add plain index page
+            web.post('/submit_buckets', self.submit_buckets),
             web.get('/', self.index),
             web.get('/test', self.test_minio),
             web.get('/test_dht', self.test_DHT)

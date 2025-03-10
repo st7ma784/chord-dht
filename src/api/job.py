@@ -6,6 +6,9 @@ import cv2
 import base64
 import json
 import logging
+from collections import defaultdict
+from typing import List, Tuple
+import datetime
 import os
 logger=logging.getLogger(__name__)
 class Tasks:
@@ -32,6 +35,7 @@ class Tasks:
     test=runCommand
 
 class NameConverters:
+    #This is a class for how to convert filenames from input to output, as a crude way of ensuring sensible methods are called in the right order
     def convertFitacfName(inputFileName):
         return inputFileName.replace('rawacf','.fitacf3').replace('.bz2','')
     def convertDespeckName(inputFileName):
@@ -52,6 +56,7 @@ class NameConverters:
         return inputFileName
     
 class Visualizers:
+    #This is a class for how to visualize the output of the tasks
     def visualiseFitacf(self):
         fitacf_data = pydarn.SuperDARNRead(self.destfile).read_fitacf()
 
@@ -217,9 +222,99 @@ class Visualizers:
         os.remove(path)
         ret, buf = cv2.imencode('.png', data)
         return base64.b64encode(buf).decode('ascii')  
-
     
+class FileGroupers:
+    #this is a class for how to yield files from a bucket
 
+    radarnames=['bks','cly','cvw','fhe','fhw','gbr','han','hok','inv','kap','ker','kod','ksr','lyr','pgr','pyk','rkn','sas','sto','sye','sys','tig','wal','zho']
+    
+    def singleFiles(bucket,node) -> Tuple[List, float]:
+        total_files=len(node.MinioClient.list_objects(bucket))
+        for file,idx in node.MinioClient.list_objects(bucket):
+            yield [file],idx/total_files
+    def groupByRadarAndDate(bucket,node) -> Tuple[List, float]:
+        total_files=len(node.MinioClient.list_objects(bucket))
+        RadarDate_default_dict = defaultdict(lambda: defaultdict(set))
+        yielded_files = 0
+        for file, idx in node.MinioClient.list_objects(bucket):
+            radar_name = next((name for name in FileGroupers.radarnames if name in file), None)
+            if radar_name:
+                file_date = file.split(".")[0][:8]
+                RadarDate_default_dict[radar_name][file_date].add(file)
+                if len(RadarDate_default_dict[radar_name]) > 8:
+                    yielded_files += 1
+                    yield list(RadarDate_default_dict[radar_name]), yielded_files / total_files
+        for radar_name in RadarDate_default_dict:
+            for date in RadarDate_default_dict[radar_name]:
+                yielded_files += 1
+                yield list(RadarDate_default_dict[radar_name][date]), yielded_files / total_files
+        
+    def groupByDate(bucket,node)-> Tuple[List, float]:
+        min_date=datetime.datetime.now().timestamp()
+        max_date=0
+        for file,idx in node.MinioClient.list_objects(bucket):
+            file_date=int(file.split(".")[0])
+            if file_date>max_date:
+                max_date=file_date
+            if file_date<min_date:
+                min_date=file_date
+        total_num_days=(max_date-min_date)/(24*3600)
+        Date_default_dict=defaultdict(set)
+        yielded_files=0
+        for file,idx in node.MinioClient.list_objects(bucket):
+            Date_default_dict[file.split(".")[0][:8]].add(file)
+            if len(Date_default_dict)>8:
+                yielded_files+=1
+                yield list(Date_default_dict),yielded_files/total_num_days
+        for entry in Date_default_dict:
+            yielded_files+=1
+            yield list(Date_default_dict[entry]),yielded_files/total_num_days
+                
+    def groupByHour(bucket,node) -> Tuple[List, float]:
+        min_date = datetime.datetime.now().timestamp()
+        max_date = 0
+        for file, idx in node.MinioClient.list_objects(bucket):
+            file_date = int(file.split(".")[0])
+            if file_date > max_date:
+                max_date = file_date
+            if file_date < min_date:
+                min_date = file_date
+        total_num_hours = (max_date - min_date) / 3600
+        Hour_default_dict = defaultdict(set)
+        yielded_files = 0
+        for file, idx in node.MinioClient.list_objects(bucket):
+            file_hour = file.split(".")[0][:10]  # Assuming the hour is included in the filename
+            Hour_default_dict[file_hour].add(file)
+            if len(Hour_default_dict) > 24:
+                yielded_files += 1
+                yield list(Hour_default_dict), yielded_files / total_num_hours
+        for entry in Hour_default_dict:
+            yielded_files += 1
+            yield list(Hour_default_dict[entry]), yielded_files / total_num_hours
+    def groupByRadarAndHour(bucket,node)-> Tuple[List, float]:
+        min_date = datetime.datetime.now().timestamp()
+        max_date = 0
+        for file, idx in node.MinioClient.list_objects(bucket):
+            file_date = int(file.split(".")[0])
+            if file_date > max_date:
+                max_date = file_date
+            if file_date < min_date:
+                min_date = file_date
+        total_num_hours = (max_date - min_date) / 3600
+        Hour_default_dict = defaultdict(set)
+        yielded_files = 0
+        for file, idx in node.MinioClient.list_objects(bucket):
+            radar_name = next((name for name in FileGroupers.radarnames if name in file), None)
+            if radar_name:
+                file_hour = file.split(".")[0][:10]  # Assuming the hour is included in the filename
+                Hour_default_dict[radar_name][file_hour].add(file)
+                if len(Hour_default_dict[radar_name]) > 24:
+                    yielded_files += 1
+                    yield list(Hour_default_dict[radar_name]), yielded_files / total_num_hours
+        for radar_name in Hour_default_dict:
+            for entry in Hour_default_dict[radar_name]:
+                yielded_files += 1
+                yield list(Hour_default_dict[radar_name][entry]), yielded_files / total_num_hours
 
 class Job:
     @staticmethod
@@ -276,6 +371,8 @@ class Job:
 
         if self.data['task'] == 'test':
             self.run= self.run_test
+        if self.data.get('launch',False):
+            self.run=self.task_launcher
 
     def serialize(self):
         # Serialize the job to a string to be stored in the database
@@ -316,9 +413,17 @@ class Job:
         return progress and status of the job 
         step5:
         keep tabs on job ids
-        
         '''
-        pass 
+        #step1 
+        self.status = 'running'
+        bucket=self.data['source_bucket']
+        #step2
+        for files,progress in self.file_grouper[self.data['task']](bucket,node):
+            #group files according to task
+            self.node.put_job(Job(self.job_id,{'task':self.data['task'],'source_bucket':bucket,'objectname':','.join(files),'dest_bucket':self.data['dest_bucket'],'args':self.data['args']}))
+            self.status=str(progress)
+        self.status = 'completed'
+        return 'completed'
     
     def run(self,node):
         # Implement the job logic here
