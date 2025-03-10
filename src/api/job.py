@@ -1,7 +1,5 @@
 import hashlib
 import subprocess
-from minio import Minio
-from minio.error import S3Error
 import pydarn
 import matplotlib.pyplot as plt
 import cv2
@@ -11,19 +9,19 @@ import logging
 import os
 logger=logging.getLogger(__name__)
 class Tasks:
-    def getFitacfCommand(self, files, destfile,*args, **kwargs):
+    def getFitacfCommand(files, destfile,*args, **kwargs):
         return "make_fit -fitacf3 {} > {}".format(' '.join(files), destfile)
-    def getDespeckCommand(self, files, destfile,*args, **kwargs):
+    def getDespeckCommand(files, destfile,*args, **kwargs):
         return "fit_speck_removal {} >{}".format(' '.join(files), destfile)
-    def getCombineCommand(self, files, destfile,*args, **kwargs):
+    def getCombineCommand(files, destfile,*args, **kwargs):
         return " cat {} > {}".format(' '.join(files), destfile)
-    def getCombineGridCommand(self, files, destfile,*args, **kwargs):
+    def getCombineGridCommand(files, destfile,*args, **kwargs):
         return "combine_grid {} > {}".format(' '.join(files), destfile)
-    def getMakeGridCommand(self, files, destfile,*args, **kwargs):
+    def getMakeGridCommand(files, destfile,*args, **kwargs):
         return "make_grid {} {} > {}".format(' '.join(files), kwargs.get('params', ''),destfile)
-    def getMapGrdCommand(self, files, destfile,*args, **kwargs):
+    def getMapGrdCommand(files, destfile,*args, **kwargs):
         return "map_grd {} | map_addhmb | map_addimf -if {} | map_addmodel {} | map_fit > {}".format(' '.join(files), kwargs.get('imffilepath', ''), kwargs.get('params', ''), destfile)
-    def runCommand(self, files, destfile,*args, **kwargs):
+    def runCommand(files, destfile,*args, **kwargs):
         return " ".join(args)
     fitacf = getFitacfCommand
     despeck = getDespeckCommand
@@ -33,117 +31,27 @@ class Tasks:
     map_grd = getMapGrdCommand
     test=runCommand
 
-class Job:
-    @staticmethod
-    def deserialize(string):
-        # Deserialize the job from a string stored in the database
-        #convert string to json and then to dictionary
-        data = json.loads(string)    
-
-        job = Job(data['job_id'], data['data'])
-        job.hash = data['hash']
-        job.status = data['status']
-        job.result = data['result']
-        job.tmpfile = data['tmpfile']
-        job.destfile = data['destfile'] 
-        return job
-
-    def __init__(self, job_id, data):
-        self.job_id = job_id
-        self.data = data #data is a request.json()
-        self.hash=hashlib.sha1(str(data).encode()).hexdigest()
-        self.status = 'pending'
-        self.result = None
-        self.tmpfile='{}'.format(self.hash)
-        self.destfile='{}'.format(self.hash)
-        self.switcher = {
-            'fitacf': Tasks.fitacf,
-            'despeck': Tasks.despeck,
-            'combine': Tasks.combine,
-            'combine_grid': Tasks.combine_grid,
-            'make_grid': Tasks.make_grid,
-            'map_grd': Tasks.map_grd,
-            'test': Tasks.test
-        }
-        self.VisualiseSwitcher={
-            'fitacf': self.visualiseFitacf,
-            'despeck': self.visualiseDespeck,
-            'combine': self.visualiseCombine,
-            'combine_grid': self.visualiseCombineGrid,
-            'make_grid': self.visualiseMakeGrid,
-            'map_grd': self.visualiseMapGrd
-            
-        }
-        if self.data['task'] == 'test':
-            self.run= self.run_test
-
-    def serialize(self):
-        # Serialize the job to a string to be stored in the database
-        dictionary =  {
-            'job_id': self.job_id,
-            'data': self.data,
-            'hash': self.hash,
-            'tmpfile': self.tmpfile,
-            'destfile': self.destfile,
-            'status': self.status,
-            'result': self.result
-        }
-        #convert dictionary to json, and dump to string
-        text = json.dumps(dictionary)
-        logger.info(f"Serialized job {self.job_id} to {text}")
-        return text
-
+class NameConverters:
+    def convertFitacfName(inputFileName):
+        return inputFileName.replace('rawacf','.fitacf3').replace('.bz2','')
+    def convertDespeckName(inputFileName):
+        return inputFileName.replace('fitacf3','.despeck.fitacf3').replace('.bz2','')
+    def converttoDailyName(inputFileName):
+        object_names=inputFileName.split(",")   
+        #take just the date part of the filename
+        file=object_names[0].split("/")[-1]
+        return object_names[0].replace(file,file[:8]+"."+file.split(".")[3]+file.split(".")[4:])
+    def combineGridName(inputFileName):
+        object_names=inputFileName.split(",")
+        return object_names[0].replace(object_names[0].split("/")[-1],object_names[0].split("/")[-1][:8]+".north.grd")
+    def makeGridName(inputFileName):
+        return inputFileName.replace('.fitacf3','grd').replace('.bz2','').replace('.despeck','')
+    def mapGrdName(inputFileName):
+        return inputFileName.replace('.grd','.map')
+    def runName(inputFileName):
+        return inputFileName
     
-    def run_test(self,node):
-        cmd = self.switcher[self.data['task']]([], [], *self.data['args'])  
-
-        os.system(cmd)
-        os.system(" echo 'Running {} from DHT on node {}'".format(self.data['task'],node._id))
-        self.status = 'completed'
-        return 'completed'
-
-    def run(self,node):
-        # Implement the job logic here
-        #from the data, extract objectname, source bucket, dest bucket and task and args
-        #download the object
-        MinioClient=node.MinioClient
-        logger.info(f"Running job {self.job_id} in job")
-        destfile=os.path.join('/dev/shm/',self.destfile)
-        files=[]
-        for inputfile in self.data["objectname"].split(","):
-            
-            tmpfile=os.path.join('/dev/shm/',self.tmpfile,inputfile)
-                
-            try:
-                MinioClient.fget_object(self.data['source_bucket'], self.data['objectname'], tmpfile)
-                if self.data['objectname'].endswith('.bz2'):
-                    subprocess.run("bzip2 -d {}".format(tmpfile), shell=True)
-                    tmpfile=tmpfile[:-4]
-
-            except Exception as e:
-                tmpfile=os.path.join('./',self.tmpfile)
-                destfile=os.path.join('./',self.destfile)
-                MinioClient.fget_object(self.data['source_bucket'], self.data['objectname'], tmpfile)
-                if self.data['objectname'].endswith('.bz2'):
-                    subprocess.run("bzip2 -d {}".format(tmpfile), shell=True)
-                    tmpfile=tmpfile[:-4]
-                    self.data['objectname']=self.data['objectname'][:-4]
-            files.append(tmpfile)
-        if self.data['task'] in self.switcher:
-            cmd = self.switcher[self.data['task']](files, destfile, **self.data['args'])
-            subprocess.run(cmd, shell=True)
-        
-            MinioClient.fput_object(self.data['dest_bucket'], self.data['objectname'], self.destfile)
-        if self.data['task'] in self.VisualiseSwitcher:
-            self.result = self.VisualiseSwitcher[self.data['task']](self.destfile)
-        try:
-            os.remove(self.tmpfile)
-            os.remove(self.destfile)
-        except:
-            pass
-        self.status = 'completed'
-        return self.result
-
+class Visualizers:
     def visualiseFitacf(self):
         fitacf_data = pydarn.SuperDARNRead(self.destfile).read_fitacf()
 
@@ -311,3 +219,128 @@ class Job:
         return base64.b64encode(buf).decode('ascii')  
 
     
+
+
+class Job:
+    @staticmethod
+    def deserialize(string):
+        # Deserialize the job from a string stored in the database
+        #convert string to json and then to dictionary
+        data = json.loads(string)    
+
+        job = Job(data['job_id'], data['data'])
+        job.hash = data['hash']
+        job.status = data['status']
+        job.result = data['result']
+        job.tmpfile = data['tmpfile']
+        job.destfile = data['destfile'] 
+        return job
+
+    def __init__(self, job_id, data):
+        self.job_id = job_id
+        self.data = data #data is a request.json()
+        self.hash=hashlib.sha1(str(data).encode()).hexdigest()
+        self.status = 'pending'
+        self.result = None
+
+        self.switcher = {
+            'fitacf': Tasks.fitacf,
+            'despeck': Tasks.despeck,
+            'combine': Tasks.combine,
+            'combine_grid': Tasks.combine_grid,
+            'make_grid': Tasks.make_grid,
+            'map_grd': Tasks.map_grd,
+            'test': Tasks.test
+        }
+        self.VisualiseSwitcher={
+            'fitacf': Visualizers.visualiseFitacf,
+            'despeck': Visualizers.visualiseDespeck,
+            'combine': Visualizers.visualiseCombine,
+            'combine_grid': Visualizers.visualiseCombineGrid,
+            'make_grid': Visualizers.visualiseMakeGrid,
+            'map_grd': Visualizers.visualiseMapGrd
+            
+        }
+        self.ObjectNameConverters={
+            'fitacf': NameConverters.convertFitacfName,
+            'despeck': NameConverters.convertDespeckName,
+            'combine': NameConverters.converttoDailyName,
+            'combine_grid': NameConverters.combineGridName,
+            'make_grid': NameConverters.makeGridName,
+            'map_grd': NameConverters.mapGrdName,
+            'test': NameConverters.runName
+        }
+
+        self.tmpfile='tmp{}{}'.format(self.hash[:2],self.data['objectname'])
+        self.destfile='dest{}{}'.format(self.hash[:2],self.ObjectNameConverters[self.data['task']](self.data['objectname']))
+
+        if self.data['task'] == 'test':
+            self.run= self.run_test
+
+    def serialize(self):
+        # Serialize the job to a string to be stored in the database
+        dictionary =  {
+            'job_id': self.job_id,
+            'data': self.data,
+            'hash': self.hash,
+            'tmpfile': self.tmpfile,
+            'destfile': self.destfile,
+            'status': self.status,
+            'result': self.result
+        }
+        #convert dictionary to json, and dump to string
+        text = json.dumps(dictionary)
+        logger.info(f"Serialized job {self.job_id} to {text}")
+        return text
+
+    
+    def run_test(self,node):
+        cmd = self.switcher[self.data['task']]([], [], *self.data['args'])  
+
+        os.system(cmd)
+        os.system(" echo 'Running {} from DHT on node {}'".format(self.data['task'],node._id))
+        self.status = 'completed'
+        return 'completed'
+
+    def run(self,node):
+        # Implement the job logic here
+        #from the data, extract objectname, source bucket, dest bucket and task and args
+        #download the object
+        MinioClient=node.MinioClient
+        logger.info(f"Running job {self.job_id} in job")
+        destfile=os.path.join('/dev/shm/',self.destfile)
+        files=[]
+        for inputfile in self.data["objectname"].split(","):
+            
+            tmpfile=os.path.join('/dev/shm/',self.tmpfile,inputfile)
+                
+            try:
+                MinioClient.fget_object(self.data['source_bucket'], self.data['objectname'], tmpfile)
+                if inputfile.endswith('.bz2'):
+                    subprocess.run("bzip2 -d {}".format(tmpfile), shell=True)
+                    tmpfile=tmpfile[:-4]
+
+            except Exception as e:
+                tmpfile=os.path.join('./',self.tmpfile)
+                destfile=os.path.join('./',self.destfile)
+                MinioClient.fget_object(self.data['source_bucket'], self.data['objectname'], tmpfile)
+                if self.data['objectname'].endswith('.bz2'):
+                    subprocess.run("bzip2 -d {}".format(tmpfile), shell=True)
+                    tmpfile=tmpfile[:-4]
+                    self.data['objectname']=self.data['objectname'][:-4]
+            files.append(tmpfile)
+        if self.data['task'] in self.switcher:
+            cmd = self.switcher[self.data['task']](files, destfile, *self.data['args'])
+            subprocess.run(cmd, shell=True)
+        
+            MinioClient.fput_object(self.data['dest_bucket'], self.ObjectNameConverters[self.data['task']](self.data['objectname']), self.destfile)
+        if self.data['task'] in self.VisualiseSwitcher:
+            self.result = self.VisualiseSwitcher[self.data['task']](self)
+        try:
+            os.remove(self.tmpfile)
+            os.remove(self.destfile)
+        except:
+            pass
+        self.status = 'completed'
+        return self.result
+
