@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SuperDARN Project</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+        }
+        .sidebar {
+            float: left;
+            width: 200px;
+            margin-right: 20px;
+        }
+        .content {
+            overflow: hidden;
+        }
+        .sidebar ul {
+            list-style-type: none;
+            padding: 0;
+        }
+        .sidebar ul li {
+            margin-bottom: 10px;
+        }
+        .sidebar ul li a {
+            text-decoration: none;
+            color: #333;
+        }
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+        }
+        input[type="text"] {
+            width: 100%;
+            padding: 8px;
+            box-sizing: border-box;
+        }
+        .progress-bar {
+            width: 100%;
+            background-color: #f3f3f3;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            overflow: hidden;
+            margin-top: 20px;
+        }
+        .progress-bar-inner {
+            height: 20px;
+            width: 0;
+            background-color: #4caf50;
+            text-align: center;
+            color: white;
+            line-height: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="sidebar">
+            <h2>Services</h2>
+            <ul>
+                <li><a href="localhost:9001">Minio</a></li>
+                <li><a href="/luna/">Load From Luna</a></li>                
+            </ul>
+        </div>
+        <h1>SuperDARN Project</h1>
+        <form id="minio-access-form">
+            <div class="form-group">
+            <label for="input-bucket">Input Minio Bucket:</label>
+            <select id="input-bucket" name="input-bucket" required>
+                <option value="None">None</option>
+            </select>
+            <script>
+                document.addEventListener('DOMContentLoaded', function() {
+                    const inputBucketSelect = document.getElementById('input-bucket');
+                    ReadgetBuckets({ target: inputBucketSelect });
+                });
+            </script>
+            </div>
+            <div class="form-group">
+            <label for="output-bucket">Output Minio Bucket:</label>
+            <select id="output-bucket" name="output-bucket" required>
+                <option value="None">None</option>
+            </select>
+            <script>
+                document.addEventListener('DOMContentLoaded', function() {
+                    const inputBucketSelect = document.getElementById('output-bucket');
+                    ReadgetBuckets({ target: inputBucketSelect });
+                });
+            </script>
+            <input type="text" id="custom-output-bucket" name="custom-output-bucket" placeholder="Enter custom bucket name">
+            </div>
+            <label for="task"> Select step to perform</label>
+            <select id="task" name="taskMenu" required>
+                <option value="None">None</option>
+                <option value="fit">Step 1 - Fit</option>
+                <option value="convert_to_daily">Step 2 - Convert to daily</option>
+                <option value="despeck">Step 3 - Despeckle</option>
+                <option value="make_grid">Step 4 - Make Grid</option>
+                <option value="combine_grids">Step 5 - Combine Grids</option>
+                <option value="map_grid">Step 6 - Map Grid</option>
+            </select>
+
+            <button type="submit">Submit</button>
+        </form>
+
+        <form id="params-form">
+            <div class="form-group">
+            <label for="params">Parameters (key:value pairs):</label>
+            <input type="text" id="params" name="params" placeholder="e.g., o:8,d:l" required>
+            </div>
+            <button type="submit">Submit</button>
+        </form>
+
+        <form id="imf-file-form">
+            <div class="form-group">
+            <label for="imf-file">Upload IMF Data (.txt file):</label>
+            <input type="file" id="imf-file" name="file" accept=".txt" required>
+            </div>
+            <button type="submit">Submit</button>
+        </form>
+
+
+        <div class="progress-bar" id="progress-bar">
+            <div class="progress-bar-inner" id="progress-bar-inner">0%</div>
+        </div>
+        <div id="output"></div>
+    </div>
+
+    <script>
+        function ReadgetBuckets(event){
+                fetch('/getbuckets', {
+                    method: 'GET'
+                })
+                .then(response => response.json())
+                .then(data => {
+                    const inputBucketSelect = event.target;
+                    data.buckets.forEach(bucket => {
+                    const option = document.createElement('option');
+                    option.value = bucket;
+                    option.textContent = bucket;
+                    inputBucketSelect.appendChild(option);
+                    });
+                });
+        };
+
+        function ReadMinioData(event){
+            event.preventDefault();
+            // Get form data
+            const formData = new FormData(event.target);
+            // Send POST request to server with form data
+            const endpoint = '/updatebuckets';
+            let data = {
+                file: formData.get('file'),
+                input_bucket: formData.get('input-bucket'),
+                output_bucket: formData.get('output-bucket'),
+                custom_output_bucket: formData.get('custom-output-bucket'),
+                task: formData.get('taskMenu'),
+                args: formData.get('params')
+            };
+            submitdataAndUpdateBar(data, endpoint);
+
+        }
+        
+        function doUpdate(){
+            fetch('/update', {
+                        method: 'GET'
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.image_url) {
+                            var img = new Image();
+                            img.src = 'data:image/jpeg;base64,' + data.image_url;
+                            img.onload = () => ctxcanvasMask.drawImage(img, 0, 0);
+                        }
+                        const progressBarInner = document.getElementById('progress-bar-inner');
+                        let processed=data.progress;
+                        let total= data.total;
+                        let percentage = (processed/total)*100;
+                        progressBarInner.style.width = (percentage) + '%';
+                        progressBarInner.textContent = Math.round(percentage) + '%';
+                        if (percentage >= 100) {
+                            // reload page when progress reaches 100%
+                            location.reload();
+                        }
+                        else {
+                            // wait 1 second before updating again
+                            setTimeout(doUpdate, 500);
+                        }
+                    })
+                    .catch(err => alert("PROBLEM\\n\\n" + err));
+        }
+
+
+        document.getElementById('imf-file-form').addEventListener('submit', ReadMinioData);
+        document.getElementById('params-form').addEventListener('submit', ReadMinioData);
+        document.getElementById('minio-access-form').addEventListener('submit', ReadMinioData);
+        
+        function submitdataAndUpdateBar(data, endpoint) {
+            fetch(endpoint, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(data)
+            })
+            .then(response => {
+                if (response.ok) {
+                doUpdate();
+            }
+        });
+        }
+    </script>
+</body>
+</html>

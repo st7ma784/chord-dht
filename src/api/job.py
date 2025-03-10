@@ -302,6 +302,24 @@ class Job:
         self.status = 'completed'
         return 'completed'
 
+    def task_launcher(self,node):
+        '''
+        This is the task for the job. It is called by the worker node to run the job. 
+        It will take an input and output bucket, 
+        step1:
+        search files in the input bucket
+        step2: 
+        group according to task
+        step3:
+        put the groups of files in the worker nodes for processing
+        step4:
+        return progress and status of the job 
+        step5:
+        keep tabs on job ids
+        
+        '''
+        pass 
+    
     def run(self,node):
         # Implement the job logic here
         #from the data, extract objectname, source bucket, dest bucket and task and args
