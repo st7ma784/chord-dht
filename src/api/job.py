@@ -399,6 +399,37 @@ class Job:
         self.status = 'completed'
         return 'completed'
 
+    def Luna_store_job(self,node):
+        #this will be the job for running the python script to copy data from minio to LUNA. 
+        #``
+        
+        lunapath=self.data['lunapath']
+        source_bucket=self.data['source_bucket']
+        user=self.data['user']
+        password=self.data['password']
+        ##to do : find a way to spread this round the hash table too! 
+        
+        try:
+            #mount luna
+            smbclient.ClientConfig(username=user, password=password, domain="luna.lancs.ac.uk")
+            smbclient.register_session(r"\\luna.lancs.ac.uk\FST", username=user, password=password)
+            #read all files in the directory and upload them to the minio bucket
+            logger.info(f"Uploading files from {lunapath} to {source_bucket}")
+            total_files= len(smbclient.listdir(lunapath))
+            total_files= len(smbclient.listdir(lunapath))
+
+            for root, dirs, files in smbclient.walk(lunapath):
+                for file in files:
+                    lunapath=os.path.join(root, file)
+                    with open(lunapath, 'rb') as f:
+                        minio_client.put_object(source_bucket, os.path.basename(lunapath), f, length=-1)
+                        Processed+=1
+            #unmount luna
+            smbclient.unmount("//luna.lancs.ac.uk/FST")
+        except Exception as e:
+            logger.error(f"An error occurred: {e}")
+            pass
+
     def task_launcher(self,node):
         '''
         This is the task for the job. It is called by the worker node to run the job. 

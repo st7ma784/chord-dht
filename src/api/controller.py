@@ -14,7 +14,9 @@ class ApiController(asyncio.Protocol):
         self.jobs = {}
         
     async def index(self, request):
-        return web.Response(text="Welcome to the API server {}:{}".format(self.chord_node._id,self.chord_node._numeric_id))
+        #return index.html file
+        return web.FileResponse('index.html')
+        # return web.Response(text="Welcome to the API server {}:{}".format(self.chord_node._id,self.chord_node._numeric_id))
     
     async def test_minio(self, request):
         print("Testing Minio")
