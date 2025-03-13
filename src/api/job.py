@@ -373,6 +373,8 @@ class Job:
             self.run= self.run_test
         if self.data.get('launch',False):
             self.run=self.task_launcher
+        if self.data.get('lunapath',False):
+            self.run=self.Luna_store_job
 
     def serialize(self):
         # Serialize the job to a string to be stored in the database

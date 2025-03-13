@@ -63,7 +63,9 @@ class ApiController(asyncio.Protocol):
             return web.json_response({'status': job.status, 'result': job.result})
         else:
             return web.json_response({'error': 'Job not found'}, status=404)
-
+    async def get_all_jobs(self, request):
+        return web.json_response({'jobs': self.jobs})
+    
     async def submit_buckets(self, request):
         data = await request.json()
         print("received bucket request {}".format(data))
@@ -76,12 +78,27 @@ class ApiController(asyncio.Protocol):
         print("Job {} added to chord".format(job_id))
         return web.json_response({'job_id': job_id})
 
+    async def get_luna_data(self, request):
+        data = await request.json()
+        print("received bucket request {}".format(data))
+        assert data["lunapath"] is not None
+        job_id = str(len(self.jobs) + 1)
+        job = Job(job_id, data)
+        self.jobs[job_id] = job
+        # Logic to move job to relevant worker
+        print(f"Adding job {job_id} to chord node")
+        await self.chord_node.put_job(job)
+        print("Job {} added to chord".format(job_id))
+        return web.json_response({'job_id': job_id})
+    
     def get_routes(self):
         return [
             web.post('/jobs', self.add_job),
             web.get('/jobs/{job_id}', self.get_job_status),
+            web.get('/jobs', self.get_all_jobs),
             #add plain index page
             web.post('/submit_buckets', self.submit_buckets),
+            web.post('/get_luna_data', self.get_luna_data),
             web.get('/', self.index),
             web.get('/test', self.test_minio),
             web.get('/test_dht', self.test_DHT)
