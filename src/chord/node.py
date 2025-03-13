@@ -34,8 +34,8 @@ class Node:
         self._id = generate_id(self._addr.encode("utf-8"), keysize=self.key_sz)
         self._numeric_id = int(self._id, 16) % self.ring_sz
 
-        self._MAX_STEPS = int(6)
-        self._MAX_SUCC = int(3)
+        self._MAX_STEPS = int(10)
+        self._MAX_SUCC = int(6)
         self._REPLICATION_COUNT = 1
 
         self._fingers = [
@@ -196,7 +196,7 @@ class Node:
         """
         # if succ not yet set don't run stabilize
         _fix_interval = 1
-        print_interval = 2000
+        print_interval = 200
         time_since_last_print = print_interval
         while True:
             await asyncio.sleep(_fix_interval)
@@ -219,6 +219,13 @@ class Node:
                         self._successor = pred.copy()
                         self._fingers[0] = self._successor
                 self._successors = [self._successor] + succ_list[:-1]
+                #use successors to update fingers
+                for i in range(len(self._fingers)):
+                    next_id = (self._numeric_id + (2 ** i)) % (2 ** len(self._fingers))
+                    found, succ = await self.find_successor(next_id)
+                    if found and self._fingers[i] != succ:
+                        # print(f"Finger {i} updated from {self._fingers[i]['addr']} to {succ}.")
+                        self._fingers[i] = succ
                 await rpc_notify(self._successor["addr"], self._addr, self.ring_sz, self.key_sz)
             except Exception as e:
                 # logger.error(e)
@@ -246,15 +253,19 @@ class Node:
         while True:
             await asyncio.sleep(_fix_interval)
             self._next = (self._next + 1) % len(self._fingers)
-            next_id = (self._numeric_id + (2 ** self._next)) % (2 ** len(self._fingers))
+            self._next += 1
+            next_id = (self._numeric_id + (2 ** self._next)) % 2 ** len(self._fingers)
             found, succ = await self.find_successor(next_id)
-            if not found:
-                logger.warning("No suitable node found to fix this finger.")
-                continue
-            # else:
-            if self._fingers[self._next] != succ:
+            if found and self._fingers[self._next] != succ:
                 print(f"Finger {self._next} updated from {self._fingers[self._next]['addr']} to {succ}.")
                 self._fingers[self._next] = succ
+            #        while True:
+            # await asyncio.sleep(_fix_interval)
+            # for i in range(len(self._fingers)):
+            #     next_id = (self._numeric_id + (2 ** i)) % self.ring_sz
+            #     found, succ = await self.find_successor(next_id)
+            #     if found and self._fingers[i] != succ:
+            #         self._fingers[i] = succ
 
     async def fix_successor(self):
         """
@@ -268,12 +279,22 @@ class Node:
             found, succ = await rpc_ask_for_succ(
                 self._successor["addr"], self._numeric_id
             )
-            if not found:
-                continue
-            if succ != self._successor:
-                self._successor = succ
+            #check that self._successor is still the successor of the current node and update if not
+            if found and self._successor != succ:
+                if between(
+                    succ["numeric_id"],
+                    self._numeric_id,
+                    self._successor["numeric_id"],
+                    inclusive_right=False,
+                    inclusive_left=False,
+                    ring_sz=self.ring_sz,
+                ):
+                    self._successor = succ
+                    self._fingers[1] = self._successor
+                    await rpc_notify(self._successor["addr"], self._addr, self.ring_sz, self.key_sz)
+                    # print(f"Successor updated to {succ}")
+            # print_table(self._successors)
                 # print(f"Successor updated to {succ}")
-
     async def fix_successor_list(self):    
             
         _fix_interval = 1

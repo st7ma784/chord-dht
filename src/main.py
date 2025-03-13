@@ -64,8 +64,8 @@ async def _start(args: argparse.Namespace):
     async with chord_rpc_server:
         return await asyncio.gather(
             loop.run_until_complete(chord_rpc_server.serve_forever()),
-            loop.run_until_complete(stabilize_task),
             loop.run_until_complete(fix_fingers_task),
+            loop.run_until_complete(stabilize_task),
             loop.run_until_complete(check_pred_task),
             loop.run_until_complete(do_work),
             loop.run_until_complete(fix_successor_task),
