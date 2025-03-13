@@ -50,12 +50,12 @@ class Node:
         self._id = generate_id(self._addr.encode("utf-8"), keysize=self.key_sz)
         self._numeric_id = int(self._id, 16) % self.ring_sz
 
-        self._MAX_STEPS = int(10)
-        self._MAX_SUCC = int(6)
+        self._MAX_STEPS = int(5)
+        self._MAX_SUCC = int(4)
         self._REPLICATION_COUNT = 1
 
         self._fingers = [
-            {"addr": "", "id": "", "numeric_id": -1} for _ in range(16)
+            {"addr": "", "id": "", "numeric_id": -1} for _ in range(self.key_sz)
         ]
 
         self._predecessor = None
@@ -251,7 +251,7 @@ class Node:
                 self._successors = [self._successor] + succ_list[:-1]
                 #use successors to update fingers
                 for i in range(len(self._fingers)):
-                    next_id = (self._numeric_id + (2 ** i)) % (self.ring_sz)
+                    next_id = (self._numeric_id + (2 ** (i*4))) % (self.ring_sz)
                     found, succ = await self.find_successor(next_id)
                     if found and self._fingers[i] != succ:
                         # print(f"Finger {i} updated from {self._fingers[i]['addr']} to {succ}.")
@@ -283,7 +283,7 @@ class Node:
         while True:
             await asyncio.sleep(_fix_interval)
             self._next = (self._next + 1) % len(self._fingers)
-            next_id = (self._numeric_id + (2 ** self._next)) % self.ring_sz
+            next_id = (self._numeric_id + int(2 ** (self._next*4))) % self.ring_sz
             numeric_id = int(next_id, 16)
             found, succ = await self.find_successor(numeric_id)
             if found and self._fingers[self._next] != succ:
