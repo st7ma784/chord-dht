@@ -16,14 +16,19 @@ class Node:
 
     router = aiomas.rpc.Service()
 
-    def __init__(self, host: str, port: str):
+    def __init__(self, host: str, port: str, **kwargs):
         self._addr = f"{host}:{port}"
+        minio_url=kwargs.get("minio_url",os.environ.get("MINIO_URL","http://localhost:9000"))
+        print(f"Minio URL: {minio_url}")
         self.MinioClient = Minio(
-            os.getenv('MINIO_URL', '10.48.163.59:9000'),
+            minio_url,
             access_key=os.getenv('MINIO_ACCESS_KEY', 'minioadmin'),
             secret_key=os.getenv('MINIO_SECRET_KEY', 'minioadmin'),
             secure=False,
         )
+
+        #print known buckets at spin up 
+        print("Known Buckets: {}".format(self.MinioClient.list_buckets()))
         self.ring_sz = 2 ** (int(16))
         self.key_sz = 16 //4
         self._id = generate_id(self._addr.encode("utf-8"), keysize=self.key_sz)

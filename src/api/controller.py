@@ -1,8 +1,7 @@
 import asyncio
 from aiohttp import web
 from .job import Job
-import logging
-logger=logging.getLogger(__name__)
+
 
 class ApiController(asyncio.Protocol):
     """
@@ -15,14 +14,21 @@ class ApiController(asyncio.Protocol):
         
     async def index(self, request):
         #return index.html file
-        return web.FileResponse('index.html')
+        try:
+            return web.FileResponse('./src/api/templates/index.html')
+        except Exception as e:
+            print("Error: {}".format(e))
+            return web.Response(text="Error: {}".format(e))
         # return web.Response(text="Welcome to the API server {}:{}".format(self.chord_node._id,self.chord_node._numeric_id))
     
     async def test_minio(self, request):
         print("Testing Minio")
         bucket_name = "test"
-        
-        buckets=self.chord_node.MinioClient.list_buckets()
+        try:
+            buckets=self.chord_node.MinioClient.list_buckets()
+        except Exception as e:
+            print("Error: {}".format(e))
+            return web.Response(text="Error: {}".format(e))
         print("Buckets: {}".format(buckets))
         if bucket_name not in buckets:
             self.chord_node.MinioClient.make_bucket(bucket_name)
@@ -42,7 +48,15 @@ class ApiController(asyncio.Protocol):
         response= await self.chord_node.put_job(job,ttl=3600)
         return web.Response(text="Test DHT web request processed from node {} \n given jobid: {} landing on nodes {}".format(self.chord_node._id,job_id, response))
 
-
+    async def get_buckets(self, request):
+        print("Getting Buckets")
+        try:
+            buckets=self.chord_node.MinioClient.list_buckets()
+            print("Buckets: {}".format(buckets))
+            return web.json_response({'buckets': buckets})
+        except Exception as e:
+            print("Error: {}".format(e))
+            return web.Response(text="Error: {}".format(e))
     async def add_job(self, request):
         data = await request.json()
         job_id = str(len(self.jobs) + 1)
@@ -99,6 +113,7 @@ class ApiController(asyncio.Protocol):
             #add plain index page
             web.post('/submit_buckets', self.submit_buckets),
             web.post('/get_luna_data', self.get_luna_data),
+            web.get('/getbuckets', self.get_buckets),
             web.get('/', self.index),
             web.get('/test', self.test_minio),
             web.get('/test_dht', self.test_DHT)
