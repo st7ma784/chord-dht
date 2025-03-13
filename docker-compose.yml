@@ -21,7 +21,7 @@ services:
     depends_on:
       - bootstrap
     environment:
-      - MINIO_URL=10.48.163.59:9000
+      - MINIO_URL=10.45.15.149:9000
     deploy:
       replicas: 12
 
@@ -37,3 +37,10 @@ services:
       - node
     deploy:
       replicas: 1
+    networks:
+      - nginx_network
+
+
+networks:
+  nginx_network:
+    driver: bridge
