@@ -97,7 +97,10 @@ class ApiController(asyncio.Protocol):
         print("Job {} added to chord".format(job_id))
         return web.json_response({'job_id': job_id})
     async def getStatus(self, request):
-        status_dict={"minio":self.chord_node.MinioClient.is_connected()}
+        try:
+            status_dict={"minio": "online" if len(self.chord_node.MinioClient.list_buckets())>1 else "offline"}
+        except Exception as e:
+            status_dict={"minio":"offline"}
         if self.chord_node.get_predecessor() is not None:
             status_dict["chord"]="online"
         else:
