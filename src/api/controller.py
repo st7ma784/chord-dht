@@ -83,7 +83,10 @@ class ApiController(asyncio.Protocol):
             return web.json_response({'error': 'Job not found'}, status=404)
         
     async def get_all_jobs(self, request):
-        return web.json_response({'jobs': self.jobs})
+        for job_id, job in self.jobs.items():
+            print(f"Job {job_id} job.id : {job.job_id} status: {job.status}")
+        response = {"jobs":[{'server_idx':job_id,'status': job.status, 'result': job.result is not None, 'job_id':job.job_id} for job_id, job in self.jobs.items()]}
+        return web.json_response(response)
     
     async def submit_buckets(self, request):
         data = await request.json()
@@ -98,17 +101,17 @@ class ApiController(asyncio.Protocol):
         return web.json_response({'job_id': job_id})
     async def getStatus(self, request):
         try:
-            status_dict={"minio": "online" if len(self.chord_node.MinioClient.list_buckets())>1 else "offline"}
+            status_dict={"minio": "online" if len(self.chord_node.MinioClient.list_buckets())>=1 else "offline"}
         except Exception as e:
             status_dict={"minio":"offline"}
-        if self.chord_node.get_predecessor() is not None:
+        if self.chord_node._predecessor is not None:
             status_dict["chord"]="online"
         else:
             status_dict["chord"]="offline"
         return web.json_response(status_dict)
     async def getfinger(self, request):
         ''' returns a list of finger table entries'''
-        return web.json_response({"finger":self.chord_node._finger_table})
+        return web.json_response({"finger":self.chord_node._fingers})
 
 
     async def backup_bucket_to_luna(self, request):
@@ -145,7 +148,7 @@ class ApiController(asyncio.Protocol):
         return [
             #routes for interactive funtionalities
             web.get('/jobs/{job_id}', self.get_job_status), # will be used by loading bar per job
-            web.get('/jobs', self.get_all_jobs), # will be used by container for running jobs
+            web.get('/getjobs', self.get_all_jobs), # will be used by container for seeing running jobs
             web.get('/nodes_status', self.get_nodes), # will be used by container for showing node status w/ network info
             #routes for submitting jobs - either bulk - or single 
             # submit buckets is a bulk job, that will trigger many other jobs being added to the system
