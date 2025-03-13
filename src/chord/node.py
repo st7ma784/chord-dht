@@ -12,6 +12,22 @@ logger = logging.getLogger(__name__)
 class Node:
     """
     Class Responsible for Managing a Chord DHT Node.
+    The chord algorithm is implemented in the next methods:
+    1 - join : Join the network by connecting to a known node.
+    Initialize node n: (the predecessor and the finger table).
+    Notify other nodes to update their predecessors and finger tables.
+    The new node takes over its responsible keys from its successor.
+    The predecessor of n can be easily obtained from the predecessor of the
+         successor(n) (in the previous circle). As for its finger table, there are various initialization methods. The simplest one is to execute find successor queries for all m entries, 
+    2 - stabilize : Called periodically. verifies current node’s successor, and tells the successor about the current node.
+    To ensure correct lookups, all successor pointers must be up to date. Therefore, a stabilization protocol is running periodically in the background which updates finger tables and successor pointers.
+    The stabilization protocol works as follows:
+    Stabilize(): n asks its successor for its predecessor p and decides whether p should be n's successor instead (this is the case if p recently joined the system).
+    Notify(): notifies n's successor of its existence, so it can change its predecessor to n
+    Fix_fingers(): updates finger tables
+    3 - fix_fingers : Called periodically. Updates finger table entries.
+    4 - fix_successor : Called periodically. Updates the successor of the current node.
+
     """
 
     router = aiomas.rpc.Service()
@@ -39,7 +55,7 @@ class Node:
         self._REPLICATION_COUNT = 1
 
         self._fingers = [
-            {"addr": "", "id": "", "numeric_id": -1} for _ in range(self.key_sz)
+            {"addr": "", "id": "", "numeric_id": -1} for _ in range(16)
         ]
 
         self._predecessor = None
@@ -191,8 +207,8 @@ class Node:
 
     async def stabilize(self):
         """
-        Called periodically. verifies current node’s successor, and tells the
-        successor about the current node.
+        Stabilize(): n asks its successor for its predecessor p and decides whether p should be n's successor instead (this is the case if p recently joined the system).
+
         """
         # if succ not yet set don't run stabilize
         _fix_interval = 1
@@ -218,10 +234,24 @@ class Node:
                     ):
                         self._successor = pred.copy()
                         self._fingers[0] = self._successor
+                    #else it should be our predecessor, and we should update our predecessor
+                    if self._predecessor is None or between(
+                        pred["numeric_id"],
+                        self._predecessor["numeric_id"],
+                        self._numeric_id,
+                        inclusive_left=False,
+                        inclusive_right=False,
+                        ring_sz=self.ring_sz,
+                    ):
+                        self._predecessor = pred.copy()
+                        #and we should notify our successor that we are their predecessor
+                        await rpc_notify(self._successor["addr"], self._addr, self.ring_sz, self.key_sz)
+                    
+                    
                 self._successors = [self._successor] + succ_list[:-1]
                 #use successors to update fingers
                 for i in range(len(self._fingers)):
-                    next_id = (self._numeric_id + (2 ** i)) % (2 ** len(self._fingers))
+                    next_id = (self._numeric_id + (2 ** i)) % (self.ring_sz)
                     found, succ = await self.find_successor(next_id)
                     if found and self._fingers[i] != succ:
                         # print(f"Finger {i} updated from {self._fingers[i]['addr']} to {succ}.")
@@ -253,9 +283,9 @@ class Node:
         while True:
             await asyncio.sleep(_fix_interval)
             self._next = (self._next + 1) % len(self._fingers)
-            self._next += 1
-            next_id = (self._numeric_id + (2 ** self._next)) % 2 ** len(self._fingers)
-            found, succ = await self.find_successor(next_id)
+            next_id = (self._numeric_id + (2 ** self._next)) % self.ring_sz
+            numeric_id = int(next_id, 16)
+            found, succ = await self.find_successor(numeric_id)
             if found and self._fingers[self._next] != succ:
                 print(f"Finger {self._next} updated from {self._fingers[self._next]['addr']} to {succ}.")
                 self._fingers[self._next] = succ
