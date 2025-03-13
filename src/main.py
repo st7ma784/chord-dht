@@ -29,7 +29,8 @@ async def _start_chord_node(args):
     """
     dht_address = args.dht_address
     host, port = dht_address.split(":")
-    return host, int(port), Node(host=host, port=port)
+    args={"minio_url":args.minio_url}
+    return host, int(port), Node(host=host, port=port,**args)
 
 
 async def _start(args: argparse.Namespace):
@@ -80,6 +81,7 @@ if __name__ == "__main__":
     import os
     parser.add_argument("--dht_address", help="Address to run the DHT Node on", default="{}:6501".format(os.getenv("HOSTNAME", "localhost")))
     parser.add_argument("--api_address", help="Address to run the DHT Node on", default="{}:8001".format(os.getenv("HOSTNAME", "localhost")))
+    parser.add_argument("--minio_url", help="Address to run the Minio Server on", default="{}:9000".format(os.getenv("HOSTNAME", "localhost")))
     parser.add_argument(
         "--bootstrap_node", help="Start a new Chord Ring if argument no present", default=None,
     )

@@ -6,12 +6,9 @@ services:
     image: st7ma784/superdarn_dhtworker:latest
     labels:
       - "com.centurylinklabs.watchtower.enable=true"
-    command: "sh -c 'python3 -u src/main.py'"
-  watchtower:
-    image: containrrr/watchtower
-    volumes:
-      - /var/run/docker.sock:/var/run/docker.sock
-    command: --interval 30
+    command: "sh -c 'python3 -u src/main.py --minio_url 10.45.15.149:9000'"
+    networks:
+      - nginx_network
   node:
     build:
       context: .
@@ -24,9 +21,9 @@ services:
       - MINIO_URL=10.45.15.149:9000
     deploy:
       replicas: 12
-
-    command: "sh -c 'python3 -u src/main.py --bootstrap_node bootstrap:6501 '"
-
+    command: "sh -c 'python3 -u src/main.py --bootstrap_node bootstrap:6501 --minio_url 10.45.15.149:9000'"
+    networks:
+      - nginx_network
   nginx:
     image: nginx:latest
     ports:

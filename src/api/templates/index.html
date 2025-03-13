@@ -28,6 +28,15 @@
             text-decoration: none;
             color: #333;
         }
+        .LeftSidebar-Jobs {
+            float: left;
+            width: 200px;
+            margin-right: 20px;
+        }
+        .LeftSidebar-Jobs ul {
+            list-style-type: none;
+            padding: 0;
+        }   
         .container {
             max-width: 600px;
             margin: 0 auto;
@@ -64,78 +73,172 @@
 </head>
 <body>
     <div class="container">
-        <div class="sidebar">
+        <!-- <div class="sidebar">
             <h2>Services</h2>
             <ul>
-                <li><a href="localhost:9001">Minio</a></li>
-                <li><a href="/luna/">Load From Luna</a></li>                
+                <li><a href="10.45.15.149:9001">Minio</a></li>
             </ul>
+        </div> -->
+        <div class="LeftSidebar-Jobs">
+            <h2>Jobs</h2>
+            <ul id="LeftSidebar-Jobs">
+            </ul>
+            <!-- 
+            Each entry will have a progress bar like this:
+            <div class="progress-bar" id="progress-bar">
+                <div class="progress-bar-inner" id="progress-bar-inner">0%</div>
+                <div class="progress-bar" id="progress-bar">
+            <canvas id="canvasMask" width="800" height="800"></canvas>
+            </div> -->
+            <script>
+                document.addEventListener('DOMContentLoaded', function() {
+                    const divcontainer = document.getElementById('LeftSidebar-Jobs');
+                    getJobs({ target: divcontainer });
+                });
+            </script>
+        </div>
+        <div class = "RightSidebar-serverStatus">
+            <h2>Server Status</h2>
+            <ul>
+                <li>Minio: <span id="minio-status">Offline</span></li>
+                <li>SuperDARN: <span id="superdarn-status">Offline</span></li>
+            </ul>
+            <div id="RightSidebar-FingerTable">
+                <ul>
+
+                </ul>
+            </div>
+            <script>
+                document.addEventListener('DOMContentLoaded', function() {
+                    const divcontainer = document.getElementById('RightSidebar-serverStatus');
+                    getStatus({ target: divcontainer });
+                });
+                document.addEventListener('DOMContentLoaded', function() {
+                    const divcontainer = document.getElementById('RightSidebar-FingerTable');
+                    getFingerTable({ target: divcontainer });
+                });
+            </script>
         </div>
         <h1>SuperDARN Project</h1>
         <form id="minio-access-form">
-            <div class="form-group">
-            <label for="input-bucket">Input Minio Bucket:</label>
-            <select id="input-bucket" name="input-bucket" required>
-                <option value="None">None</option>
-            </select>
-            <script>
-                document.addEventListener('DOMContentLoaded', function() {
-                    const inputBucketSelect = document.getElementById('input-bucket');
-                    ReadgetBuckets({ target: inputBucketSelect });
-                });
-            </script>
+            <div class="form-group" style="display: flex; gap: 10px;">
+                <div>
+                    <label for="input-bucket">Input Minio Bucket:</label>
+                    <select id="input-bucket" name="input-bucket" required>
+                    </select>
+                </div>
+                <div>
+                    <label for="output-bucket">Output Minio Bucket:</label>
+                    <select id="output-bucket" name="output-bucket" required>
+                    </select>
+                </div>
+                <div>
+                    <label for="task">Select step to perform</label>
+                    <select id="task" name="taskMenu" required></select>
+                        <option value="read_from_luna">Load From Luna</option>
+                        <option value="fit">Step 1 - Fit</option>
+                        <option value="convert_to_daily">Step 2 - Convert to daily</option>
+                        <option value="despeck">Step 3 - Despeckle</option>
+                        <option value="make_grid">Step 4 - Make Grid</option>
+                        <option value="combine_grids">Step 5 - Combine Grids</option>
+                        <option value="map_grid">Step 6 - Map Grid</option>
+                    </select>
+                </div>
+                <div>
+                    <button type="submit">Submit</button>
+                </div>
             </div>
-            <div class="form-group">
-            <label for="output-bucket">Output Minio Bucket:</label>
-            <select id="output-bucket" name="output-bucket" required>
-                <option value="None">None</option>
-            </select>
-            <script>
-                document.addEventListener('DOMContentLoaded', function() {
-                    const inputBucketSelect = document.getElementById('output-bucket');
-                    ReadgetBuckets({ target: inputBucketSelect });
-                });
-            </script>
-            <input type="text" id="custom-output-bucket" name="custom-output-bucket" placeholder="Enter custom bucket name">
-            </div>
-            <label for="task"> Select step to perform</label>
-            <select id="task" name="taskMenu" required>
-                <option value="None">None</option>
-                <option value="fit">Step 1 - Fit</option>
-                <option value="convert_to_daily">Step 2 - Convert to daily</option>
-                <option value="despeck">Step 3 - Despeckle</option>
-                <option value="make_grid">Step 4 - Make Grid</option>
-                <option value="combine_grids">Step 5 - Combine Grids</option>
-                <option value="map_grid">Step 6 - Map Grid</option>
-            </select>
-
-            <button type="submit">Submit</button>
+        </div>
+        <script>
+            document.addEventListener('DOMContentLoaded', function() {
+                const inputBucketSelect = document.getElementById('input-bucket');
+                ReadgetBuckets({ target: inputBucketSelect });
+            });
+            document.addEventListener('DOMContentLoaded', function() {
+                const inputBucketSelect = document.getElementById('output-bucket');
+                ReadgetBuckets({ target: inputBucketSelect });
+            });
+        </script>
         </form>
-
-        <form id="params-form">
+        
+        <form id="lunaForm" style="display: none;">
+            <div class="form-group">
+                <label for="luna">Luna path oN LUNA/FST:</label>
+                <input type="text" id="luna" name="luna" placeholder="e.g., 2021-01-01" required>
+            </div>
+        </form>
+        <script>
+            document.getElementById('task').addEventListener('change', function() {
+            const paramsForm = document.getElementById('lunaForm');
+            if (this.value === 'read_from_luna') {
+                paramsForm.style.display = 'block';
+            } else {
+                paramsForm.style.display = 'none';
+            }
+            });
+        </script>
+        <form id="params-form" style="display: none;">
             <div class="form-group">
             <label for="params">Parameters (key:value pairs):</label>
             <input type="text" id="params" name="params" placeholder="e.g., o:8,d:l" required>
             </div>
-            <button type="submit">Submit</button>
         </form>
-
-        <form id="imf-file-form">
+        <script>
+            document.getElementById('task').addEventListener('change', function() {
+            const paramsForm = document.getElementById('params-form');
+            if (this.value === 'make_grid') {
+                paramsForm.style.display = 'block';
+            } else {
+                paramsForm.style.display = 'none';
+            }
+            });
+        </script>
+        <form id="imf-file-form" style="display: none;">
             <div class="form-group">
             <label for="imf-file">Upload IMF Data (.txt file):</label>
             <input type="file" id="imf-file" name="file" accept=".txt" required>
             </div>
-            <button type="submit">Submit</button>
+            <button type="submit">Upload</button>
         </form>
-
-
-        <div class="progress-bar" id="progress-bar">
-            <div class="progress-bar-inner" id="progress-bar-inner">0%</div>
-        </div>
-        <div id="output"></div>
+        <script>
+            document.getElementById('task').addEventListener('change', function() {
+            const paramsForm = document.getElementById('imf-file-form');
+            if (this.value === 'map_grid') {
+                paramsForm.style.display = 'block';
+            } else {
+                paramsForm.style.display = 'none';
+            }
+            });
+        </script>
     </div>
 
     <script>
+        function getJobs(event){
+            fetch('/getjobs', {
+                method: 'GET'
+            })
+            .then(response => response.json())
+            .then(data => {
+                const divcontainer = event.target;
+                data.jobs.forEach(job => {
+                    const div = document.createElement('div');
+                    div.innerHTML = `
+                    <h3>${job.name}</h3>
+                    <div class="progress-bar" id="progress-bar${job.name}">
+                        <div class="progress-bar-inner" id="progress-bar-inner${job.name}">${job.status}%</div>
+                    </div>
+                    `;
+                    divcontainer.appendChild(div);
+                    if (job.result) {
+                        div.innerHTML += '<canvas id="canvasMask" width="800" height="800"></canvas>';
+                        const ctxcanvasMask = div.querySelector('canvas').getContext('2d');
+                        const img = new Image();
+                        img.src = 'data:image/jpeg;base64,' + job.result;
+                        img.onload = () => ctxcanvasMask.drawImage(img, 0, 0);
+                    }
+                });
+            });
+        }
         function ReadgetBuckets(event){
                 fetch('/getbuckets', {
                     method: 'GET'
@@ -151,6 +254,32 @@
                     });
                 });
         };
+        function getStatus(event){
+            fetch('/getstatus', {
+                method: 'GET'
+            })
+            .then(response => response.json())
+            .then(data => {
+                const minioStatus = document.getElementById('minio-status');
+                const superdarnStatus = document.getElementById('superdarn-status');
+                minioStatus.textContent = data.minio;
+                superdarnStatus.textContent = data.superdarn;
+            });
+        }
+        function getFingerTable(event){
+            fetch('/getfinger', {
+                method: 'GET'
+            })
+            .then(response => response.json())
+            .then(data => {
+                const divcontainer = event.target;
+                data.finger.forEach(finger => {
+                    const li = document.createElement('li');
+                    li.textContent = finger;
+                    divcontainer.appendChild(li);
+                });
+            });
+        }
 
         function ReadMinioData(event){
             event.preventDefault();
