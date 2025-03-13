@@ -9,11 +9,6 @@
             font-family: Arial, sans-serif;
             margin: 20px;
         }
-        .sidebar {
-            float: left;
-            width: 200px;
-            margin-right: 20px;
-        }
         .RightSidebar-serverStatus {
             float: right;
             width: 200px;
@@ -21,20 +16,6 @@
             /* make this the right side of the screen by setting to full height  */
             height: 100vh;
 
-        }
-        .content {
-            overflow: hidden;
-        }
-        .sidebar ul {
-            list-style-type: none;
-            padding: 0;
-        }
-        .sidebar ul li {
-            margin-bottom: 10px;
-        }
-        .sidebar ul li a {
-            text-decoration: none;
-            color: #333;
         }
         .LeftSidebar-Jobs {
             float: left;
@@ -47,9 +28,20 @@
             list-style-type: none;
             padding: 0;
         }   
-        .container {
-            max-width: 600px;
+        .content {
             margin: 0 auto;
+            width: calc(100% - 440px); /* 200px for each sidebar + 20px margin on each side */
+        }
+        .sidebar ul {
+            list-style-type: none;
+            padding: 0;
+        }
+        .sidebar ul li {
+            margin-bottom: 10px;
+        }
+        .sidebar ul li a {
+            text-decoration: none;
+            color: #333;
         }
         .form-group {
             margin-bottom: 15px;
