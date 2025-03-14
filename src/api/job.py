@@ -229,7 +229,7 @@ class FileGroupers:
     radarnames=['bks','cly','cvw','fhe','fhw','gbr','han','hok','inv','kap','ker','kod','ksr','lyr','pgr','pyk','rkn','sas','sto','sye','sys','tig','wal','zho']
     
     def singleFiles(bucket,node) -> Tuple[List, float]:
-        total_files=len(node.MinioClient.list_objects(bucket))
+        total_files=len(list(node.MinioClient.list_objects(bucket)))
         for file,idx in node.MinioClient.list_objects(bucket):
             yield [file],idx/total_files
     def groupByRadarAndDate(bucket,node) -> Tuple[List, float]:
