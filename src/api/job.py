@@ -442,7 +442,7 @@ class Job:
         step5:
         keep tabs on job ids
         '''
-        logger.info(f"Running job {self.job_id} in job launcher")
+        print(f"Running job {self.job_id} in job launcher")
 
         #step1 
         self.status = 'running'
