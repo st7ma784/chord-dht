@@ -250,7 +250,7 @@
                 //remove all children of the div
                 const divcontainer = event.target;
                 divcontainer.removeChildren();
-                
+
                 data.jobs.forEach(job => {
                     const div = document.createElement('div');
                     div.innerHTML = `
@@ -349,8 +349,8 @@
             const params = document.getElementById('params').value;
             const imfFile = document.getElementById('imf-file').files[0];
             let data= {
-                inputBucket: inputBucket,
-                outputBucket: outputBucket,
+                source_bucket: inputBucket,
+                dest_bucket: outputBucket,
                 task: task,
                 luna: luna,
                 launch: true, 

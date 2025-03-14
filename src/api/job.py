@@ -233,6 +233,7 @@ class FileGroupers:
         for file,idx in node.MinioClient.list_objects(bucket):
             yield [file],idx/total_files
     def groupByRadarAndDate(bucket,node) -> Tuple[List, float]:
+        '''pools files with the same date and radar name together'''
         total_files=len(node.MinioClient.list_objects(bucket))
         RadarDate_default_dict = defaultdict(lambda: defaultdict(set))
         yielded_files = 0
@@ -250,6 +251,7 @@ class FileGroupers:
                 yield list(RadarDate_default_dict[radar_name][date]), yielded_files / total_files
         
     def groupByDate(bucket,node)-> Tuple[List, float]:
+        '''pools files with the same date together'''
         min_date=datetime.datetime.now().timestamp()
         max_date=0
         for file,idx in node.MinioClient.list_objects(bucket):
@@ -271,6 +273,7 @@ class FileGroupers:
             yield list(Date_default_dict[entry]),yielded_files/total_num_days
                 
     def groupByHour(bucket,node) -> Tuple[List, float]:
+        '''pools files with the same hour together'''
         min_date = datetime.datetime.now().timestamp()
         max_date = 0
         for file, idx in node.MinioClient.list_objects(bucket):
@@ -292,6 +295,7 @@ class FileGroupers:
             yielded_files += 1
             yield list(Hour_default_dict[entry]), yielded_files / total_num_hours
     def groupByRadarAndHour(bucket,node)-> Tuple[List, float]:
+        '''pools files with the same hour and radar name together'''
         min_date = datetime.datetime.now().timestamp()
         max_date = 0
         for file, idx in node.MinioClient.list_objects(bucket):
@@ -315,6 +319,17 @@ class FileGroupers:
             for entry in Hour_default_dict[radar_name]:
                 yielded_files += 1
                 yield list(Hour_default_dict[radar_name][entry]), yielded_files / total_num_hours
+    def groupRadarsTogether(bucket,node):
+        '''pools all files together'''
+        total_files=len(node.MinioClient.list_objects(bucket))
+        files=[]
+        for file,idx in node.MinioClient.list_objects(bucket):
+            files.append(file)
+            if len(files)>8:
+                yield files,idx/total_files
+                files=[]
+        if len(files)>0:
+            yield files,idx/total_files
 
 class Job:
     @staticmethod
@@ -332,6 +347,18 @@ class Job:
         self.hash=hashlib.sha1(str(data).encode()).hexdigest()
         self.status = 'pending'
         self.result = None
+        #To Do - these are probably all wrong!
+        self.file_grouper = {
+            'fitacf': FileGroupers.singleFiles,
+            'despeck': FileGroupers.singleFiles,
+            'combine': FileGroupers.groupByDate,
+            'combine_grid': FileGroupers.singleFiles,
+            'make_grid': FileGroupers.singleFiles,
+            'map_grd': FileGroupers.singleFiles,
+            'test': FileGroupers.singleFiles
+        }
+
+
 
         self.switcher = {
             'fitacf': Tasks.fitacf,
@@ -443,7 +470,7 @@ class Job:
         keep tabs on job ids
         '''
         print(f"Running job {self.job_id} in job launcher")
-
+        print(f"Data: {self.data}")
         #step1 
         self.status = 'running'
         bucket=self.data['source_bucket']
