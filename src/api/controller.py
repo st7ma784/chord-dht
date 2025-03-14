@@ -67,7 +67,6 @@ class ApiController(asyncio.Protocol):
             return web.Response(text="Error: {}".format(e))
     
     async def add_job(self, request):
-        print("Adding Job", request)
         data = await request.json()
         job_id = str(len(self.jobs) + 1)
         print("received job request {}".format(data))
@@ -75,9 +74,9 @@ class ApiController(asyncio.Protocol):
         self.jobs[job_id] = job
         # Logic to move job to relevant worker
         print(f"Adding job {job_id} to chord node")
-        await self.chord_node.put_job(job)
-        print("Job {} added to chord".format(job_id))
-        return web.json_response({'job_id': job_id})
+        keys= await self.chord_node.put_job(job)
+        print("Job {} added to chord with location: ".format(job_id,keys))
+        return web.json_response({'job_id': job_id, 'keys': keys})
 
     async def get_job_status(self, request):
         job_id = request.match_info['job_id']
@@ -90,22 +89,11 @@ class ApiController(asyncio.Protocol):
             return web.json_response({'error': 'Job not found'}, status=404)
         
     async def get_all_jobs(self, request):
-        for job_id, job in self.jobs.items():
-            print(f"Job {job_id} job.id : {job.job_id} status: {job.status}")
-        response = {"jobs":[{'server_idx':job_id,'status': job.status, 'result': job.result is not None, 'job_id':job.job_id} for job_id, job in self.jobs.items()]}
+        # for job_id, job in self.jobs.items():
+        #     print(f"Job {job_id} job.id : {job.job_id} status: {job.status}")
+        response = {"jobs":[{'server_idx':job_id,'status': job.status, 'result': job.result is not None, 'job_id':job.hash} for job_id, job in self.jobs.items()]}
         return web.json_response(response)
     
-    async def submit_buckets(self, request):
-        data = await request.json()
-        print("received bucket request {}".format(data))
-        job_id = str(len(self.jobs) + 1)
-        job = Job(job_id, data)
-        self.jobs[job_id] = job
-        # Logic to move job to relevant worker
-        print(f"Adding job {job_id} to chord node")
-        await self.chord_node.put_job(job)
-        print("Job {} added to chord".format(job_id))
-        return web.json_response({'job_id': job_id})
     async def getStatus(self, request):
         try:
             status_dict={"minio": "online" if len(self.chord_node.MinioClient.list_buckets())>=1 else "offline"}
@@ -117,38 +105,12 @@ class ApiController(asyncio.Protocol):
             status_dict["chord"]="offline"
         status_dict["minioAddress"]=str(self.chord_node.minio_url.split(":")[0]+":9001")
         return web.json_response(status_dict)
+    
     async def getfinger(self, request):
         ''' returns a list of finger table entries'''
         fingers=self.chord_node._fingers
         fingers=list(set(fingers["addr"] for fingers in fingers))
         return web.json_response({"finger":fingers})
-
-
-    async def backup_bucket_to_luna(self, request):
-        data = await request.json()
-        print("received bucket request {}".format(data))
-        assert data["lunapath"] is not None
-        job_id = str(len(self.jobs) + 1)
-        job = Job(job_id, data)
-        self.jobs[job_id] = job
-        # Logic to move job to relevant worker
-        print(f"Adding job {job_id} to chord node")
-        await self.chord_node.put_job(job)
-        print("Job {} added to chord".format(job_id))
-        return web.json_response({'job_id': job_id})
-
-    async def get_luna_data(self, request):
-        data = await request.json()
-        print("received bucket request {}".format(data))
-        assert data["lunapath"] is not None
-        job_id = str(len(self.jobs) + 1)
-        job = Job(job_id, data)
-        self.jobs[job_id] = job
-        # Logic to move job to relevant worker
-        print(f"Adding job {job_id} to chord node")
-        await self.chord_node.put_job(job)
-        print("Job {} added to chord".format(job_id))
-        return web.json_response({'job_id': job_id})
     
     async def get_nodes(self):
         response={node:{"id":node.node_id,"numeric_id":node._numeric_id, "keys":node._storage.get_keys(node._predecessor["numeric_id"], node.node_id) } for node in self.chord_node._finger_table.values()}

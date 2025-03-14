@@ -403,16 +403,17 @@ class Node:
         """
         # generate multiple dht keys for each each
         keys = []
-        for replica in range(1 + self._REPLICATION_COUNT):
-            dht_key = generate_id(key, keysize=self.key_sz)
-            numeric_id = int(dht_key, 16)
+        for replica in range(self._REPLICATION_COUNT):
+            numeric_id = int(key, 16)+replica
             # logger.warning(f"Putting Key: {key} - {dht_key} - {numeric_id}")
             found, next_node = await self.find_successor(numeric_id)
-            print(f"putting key {dht_key} on node {next_node['addr']}")
-            await rpc_save_key(
-                next_node=next_node, key=dht_key, value=value,ttl=4)
+            if found:
+                print(f"putting key {key} on node {next_node['addr']}")
+                await rpc_save_key(
+                    next_node=next_node, key=key, value=value,ttl=ttl)
+            else:
+                print(f"Key {key} not found")
             keys.append(key)
-            key = dht_key
         return keys
 
     @aiomas.expose
@@ -522,7 +523,7 @@ class Node:
 
 
     @aiomas.expose
-    async def put_job(self, job,ttl:int=4):
+    async def put_job(self, job,ttl:int=6):
         """
         Stores a job in the DHT.
         Args:
@@ -557,9 +558,12 @@ class Node:
                     job = Job.deserialize(job_data)
                     if job.status == "completed":
                         continue
-                    print(f"Running job {job.job_id}")
-                    result=await self.run_job(job)
-                    self._storage.put_key(key, job.serialize())
+                    elif job.status == "pending":
+                        print(f"Running job {job.job_id} from DHT on {self._addr}")
+                        result=await self.run_job(job)
+                        job.status = "completed"
+                        self._storage.put_key(key, job.serialize())
+                        print(f"Job {job.job_id} completed on {self._addr}")
             except Exception as e:
                 print(e)
                 pass

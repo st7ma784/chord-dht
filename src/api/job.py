@@ -324,11 +324,6 @@ class Job:
         data = json.loads(string)    
 
         job = Job(data['job_id'], data['data'])
-        job.hash = data['hash']
-        job.status = data['status']
-        job.result = data['result']
-        job.tmpfile = data['tmpfile']
-        job.destfile = data['destfile'] 
         return job
 
     def __init__(self, job_id, data):
@@ -366,15 +361,16 @@ class Job:
             'test': NameConverters.runName
         }
 
-        self.tmpfile='tmp{}{}'.format(self.hash[:2],self.data['objectname'])
-        self.destfile='dest{}{}'.format(self.hash[:2],self.ObjectNameConverters[self.data['task']](self.data['objectname']))
-
         if self.data['task'] == 'test':
             self.run= self.run_test
-        if self.data.get('launch',False):
-            self.run=self.task_launcher
-        if self.data.get('lunapath',False):
+        elif self.data['task'] == 'read_from_luna':
             self.run=self.Luna_store_job
+        elif self.data.get('launch',False):
+            self.run=self.task_launcher
+        else:
+            self.tmpfile='tmp{}{}'.format(self.hash[:4],self.data.get('objectname',''))
+            self.destfile='dest{}{}'.format(self.hash[:4],self.ObjectNameConverters[self.data['task']](self.data.get('objectname','')))
+
 
     def serialize(self):
         # Serialize the job to a string to be stored in the database
@@ -382,8 +378,6 @@ class Job:
             'job_id': self.job_id,
             'data': self.data,
             'hash': self.hash,
-            'tmpfile': self.tmpfile,
-            'destfile': self.destfile,
             'status': self.status,
             'result': self.result
         }
@@ -404,7 +398,7 @@ class Job:
     def Luna_store_job(self,node):
         #this will be the job for running the python script to copy data from minio to LUNA. 
         #``
-        
+        print("running luna store job")
         lunapath=self.data['lunapath']
         source_bucket=self.data['source_bucket']
         minio_path=self.data['minio_path']
@@ -448,15 +442,19 @@ class Job:
         step5:
         keep tabs on job ids
         '''
+        logger.info(f"Running job {self.job_id} in job launcher")
+
         #step1 
         self.status = 'running'
         bucket=self.data['source_bucket']
         #step2
-        for files,progress in self.file_grouper[self.data['task']](bucket,node):
+        for idx,files,progress in enumerate(self.file_grouper[self.data['task']](bucket,node)):
             #group files according to task
-            self.node.put_job(Job(self.job_id,{'task':self.data['task'],'source_bucket':bucket,'objectname':','.join(files),'dest_bucket':self.data['dest_bucket'],'args':self.data['args']}))
+            print(f"putting job {self.job_id+idx} with files {files} in bucket {bucket}")
+            self.node.put_job(Job(self.job_id+idx,{'task':self.data['task'],'source_bucket':bucket,'objectname':','.join(files),'launch':False,'dest_bucket':self.data['dest_bucket'],'args':self.data['args']}))
             self.status=str(progress)
         self.status = 'completed'
+        print(f"Job {self.job_id} completed")
         return 'completed'
     
     def run(self,node):

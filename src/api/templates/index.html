@@ -247,17 +247,16 @@
             })
             .then(response => response.json())
             .then(data => {
+                //remove all children of the div
                 const divcontainer = event.target;
+                divcontainer.removeChildren();
+                
                 data.jobs.forEach(job => {
                     const div = document.createElement('div');
                     div.innerHTML = `
-                    <h3>${job.name}</h3>
-                    <div class="progress-bar" id="progress-bar${job.name}">
-                        <a href="/getresult?job_id=${job.job_id}" target="_blank">View Result</a>
-                        <div class="progress-bar-inner" id="progress-bar-inner${job.name}">${job.status}%</div>
-                    </div>
+                    <h3>${job.server_idx}</h3>
+                    <a href="/jobs/{job.job_id}" target="_blank">View Job</a>
                     `;
-                    divcontainer.appendChild(div);
                     if (job.result) {
                         div.innerHTML += '<canvas id="canvasMask" width="800" height="800"></canvas>';
                         const ctxcanvasMask = div.querySelector('canvas').getContext('2d');
@@ -265,6 +264,23 @@
                         img.src = 'data:image/jpeg;base64,' + job.result;
                         img.onload = () => ctxcanvasMask.drawImage(img, 0, 0);
                     }
+                    else {
+                        div.innerHTML += `
+                        <div class="progress-bar" id="progress-bar${job.server_idx}">
+                            <div class="progress-bar-inner" id="progress-bar-inner${job.server_idx}">0%</div>
+                        </div>
+                        `;
+                        const progressBar = document.getElementById(`progress-bar${job.server_idx}`);
+                        const progressBarInner = document.getElementById(`progress-bar-inner${job.server_idx}`);
+                        //if job.status is int then it is a percentage, otherwise it is a string
+                        if (typeof job.status === 'number') {
+                            progressBarInner.style.width = `${job.status}%`;
+                        }
+                        else {
+                            progressBarInner.textContent = job.status;
+                        }
+                    }
+                    divcontainer.appendChild(div);
                 });
             });
         }
@@ -332,20 +348,26 @@
             const miniopath = document.getElementById('miniopath').value;
             const params = document.getElementById('params').value;
             const imfFile = document.getElementById('imf-file').files[0];
-            const formData = new FormData();
-            formData.append('inputBucket', inputBucket);
-            formData.append('outputBucket', outputBucket);
-            formData.append('task', task);
-            formData.append('luna', luna);
-            formData.append('miniopath', miniopath);
-            formData.append('params', params);
-            formData.append('imfFile', imfFile);
-            submitdataAndUpdateBar(formData, '/submit');
+            let data= {
+                inputBucket: inputBucket,
+                outputBucket: outputBucket,
+                task: task,
+                luna: luna,
+                launch: true, 
+                // assume anything sent this way is the whole bucket to be processed.
+                miniopath: miniopath,
+                params: params,
+                imfFile: imfFile
+            };
+            submitdataAndUpdateBar(data, '/submit');
         });
 
         function doUpdate(){
+            
             getJobs({ target: document.getElementById('LeftSidebar-Jobs') });
+            
         }
+          
 
         function submitdataAndUpdateBar(data, endpoint) {
             fetch(endpoint, {
@@ -357,9 +379,9 @@
             })
             .then(response => {
                 if (response.ok) {
-                doUpdate();
-            }
-        });
+                    setInterval(doUpdate, 5000);
+                }
+            });
         }
     </script>
 </body>
