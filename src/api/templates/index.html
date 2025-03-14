@@ -323,59 +323,30 @@
                 });
             });
         }
-
-        function ReadMinioData(event){
+        document.getElementById('minio-access-form').addEventListener('submit', function(event) {
             event.preventDefault();
-            // Get form data
-            const formData = new FormData(event.target);
-            // Send POST request to server with form data
-            const endpoint = '/updatebuckets';
-            let data = {
-                file: formData.get('file'),
-                input_bucket: formData.get('input-bucket'),
-                output_bucket: formData.get('output-bucket'),
-                custom_output_bucket: formData.get('custom-output-bucket'),
-                task: formData.get('taskMenu'),
-                args: formData.get('params')
-            };
-            submitdataAndUpdateBar(data, endpoint);
+            const inputBucket = document.getElementById('input-bucket').value;
+            const outputBucket = document.getElementById('output-bucket').value;
+            const task = document.getElementById('task').value;
+            const luna = document.getElementById('luna').value;
+            const miniopath = document.getElementById('miniopath').value;
+            const params = document.getElementById('params').value;
+            const imfFile = document.getElementById('imf-file').files[0];
+            const formData = new FormData();
+            formData.append('inputBucket', inputBucket);
+            formData.append('outputBucket', outputBucket);
+            formData.append('task', task);
+            formData.append('luna', luna);
+            formData.append('miniopath', miniopath);
+            formData.append('params', params);
+            formData.append('imfFile', imfFile);
+            submitdataAndUpdateBar(formData, '/submit');
+        });
 
-        }
-        
         function doUpdate(){
-            fetch('/update', {
-                        method: 'GET'
-                    })
-                    .then(response => response.json())
-                    .then(data => {
-                        if (data.image_url) {
-                            var img = new Image();
-                            img.src = 'data:image/jpeg;base64,' + data.image_url;
-                            img.onload = () => ctxcanvasMask.drawImage(img, 0, 0);
-                        }
-                        const progressBarInner = document.getElementById('progress-bar-inner');
-                        let processed=data.progress;
-                        let total= data.total;
-                        let percentage = (processed/total)*100;
-                        progressBarInner.style.width = (percentage) + '%';
-                        progressBarInner.textContent = Math.round(percentage) + '%';
-                        if (percentage >= 100) {
-                            // reload page when progress reaches 100%
-                            location.reload();
-                        }
-                        else {
-                            // wait 1 second before updating again
-                            setTimeout(doUpdate, 500);
-                        }
-                    })
-                    .catch(err => alert("PROBLEM\\n\\n" + err));
+            getJobs({ target: document.getElementById('LeftSidebar-Jobs') });
         }
 
-
-        document.getElementById('imf-file-form').addEventListener('submit', ReadMinioData);
-        document.getElementById('params-form').addEventListener('submit', ReadMinioData);
-        document.getElementById('minio-access-form').addEventListener('submit', ReadMinioData);
-        
         function submitdataAndUpdateBar(data, endpoint) {
             fetch(endpoint, {
                 method: 'POST',

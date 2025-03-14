@@ -65,7 +65,9 @@ class ApiController(asyncio.Protocol):
         except Exception as e:
             print("Error: {}".format(e))
             return web.Response(text="Error: {}".format(e))
+    
     async def add_job(self, request):
+        print("Adding Job", request)
         data = await request.json()
         job_id = str(len(self.jobs) + 1)
         print("received job request {}".format(data))
@@ -73,7 +75,6 @@ class ApiController(asyncio.Protocol):
         self.jobs[job_id] = job
         # Logic to move job to relevant worker
         print(f"Adding job {job_id} to chord node")
-
         await self.chord_node.put_job(job)
         print("Job {} added to chord".format(job_id))
         return web.json_response({'job_id': job_id})
@@ -162,11 +163,7 @@ class ApiController(asyncio.Protocol):
             #routes for submitting jobs - either bulk - or single 
             # submit buckets is a bulk job, that will trigger many other jobs being added to the system
             # add_job is a single job, that will trigger a single job being added to the system, rarely used in practice           
-            web.post('/jobs', self.add_job), # will be used to submit jobs to the system
-            web.post('/submit_buckets', self.submit_buckets),
-            #This route is used to get data from luna
-            web.post('/restore_luna_to_bucket', self.get_luna_data),
-            web.post('/backup_bucket_to_luna', self.backup_bucket_to_luna),
+            web.post('/submit', self.add_job), # will be used to submit jobs to the system
 
             #Basic routes for page navigation
             web.get('/getbuckets', self.get_buckets),       #Used by dropdown in index.html
