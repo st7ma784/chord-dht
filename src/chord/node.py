@@ -34,10 +34,10 @@ class Node:
 
     def __init__(self, host: str, port: str, **kwargs):
         self._addr = f"{host}:{port}"
-        minio_url=kwargs.get("minio_url",os.environ.get("MINIO_URL","localhost:9000"))
-        print(f"Minio URL: {minio_url}")
+        self.minio_url=kwargs.get("minio_url",os.environ.get("MINIO_URL","localhost:9000"))
+        print(f"Minio URL: {self.minio_url}")
         self.MinioClient = Minio(
-            minio_url,
+            self.minio_url,
             access_key=os.getenv('MINIO_ACCESS_KEY', 'minioadmin'),
             secret_key=os.getenv('MINIO_SECRET_KEY', 'minioadmin'),
             secure=False,

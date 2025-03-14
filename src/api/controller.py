@@ -108,6 +108,7 @@ class ApiController(asyncio.Protocol):
             status_dict["chord"]="online"
         else:
             status_dict["chord"]="offline"
+        status_dict["minioAddress"]=str(self.chord_node.minio_url.split(":")[0]+":9001")
         return web.json_response(status_dict)
     async def getfinger(self, request):
         ''' returns a list of finger table entries'''
