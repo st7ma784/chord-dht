@@ -462,7 +462,7 @@ class Job:
         #from the data, extract objectname, source bucket, dest bucket and task and args
         #download the object
         MinioClient=node.MinioClient
-        logger.info(f"Running job {self.job_id} in job")
+        print(f"Running job {self.job_id} in job")
         destfile=os.path.join('/dev/shm/',self.destfile)
         files=[]
         for inputfile in self.data["objectname"].split(","):
