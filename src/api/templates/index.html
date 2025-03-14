@@ -136,7 +136,7 @@
             <p>Click on the "Jobs" tab on the left to view the status of your jobs.</p>
             <br>
             <h2>SuperDARN Workflow</h2>
-            <p>1. Load From Luna</p>
+            <p>1. Load From LUNA/FST into Minio</p>
             <p>2. Fit</p>
             <p>3. Convert to daily</p>
             <p>4. Despeckle</p>
@@ -147,7 +147,7 @@
             <h2>Launch</h2>
             <form id="minio-access-form">
 
-            <div class="form-group" style="display: flex; gap: 10px;">
+            <div class="form-group" style="display: flex; gap: 10px;">+
                 <div>
                     <label for="input-bucket">Input Minio Bucket:</label>
                     <select id="input-bucket" name="input-bucket" required>
@@ -190,7 +190,9 @@
         <form id="lunaForm" style="display: none;">
             <div class="form-group">
                 <label for="luna">Luna path oN LUNA/FST:</label>
-                <input type="text" id="luna" name="luna" placeholder="e.g., 2021-01-01" required>
+                <input type="text" id="luna" name="luna" placeholder="e.g. PY/SPP/data/superdarn/rawacf" required>
+                <label for="miniopath">Bucket Path to copy to</label>
+                <input type="text" id="miniopath" name="miniopath" placeholder="[bucket]/2021-01-01" required>
             </div>
         </form>
         <form id="params-form" style="display: none;">
@@ -251,6 +253,7 @@
                     div.innerHTML = `
                     <h3>${job.name}</h3>
                     <div class="progress-bar" id="progress-bar${job.name}">
+                        <a href="/getresult?job_id=${job.job_id}" target="_blank">View Result</a>
                         <div class="progress-bar-inner" id="progress-bar-inner${job.name}">${job.status}%</div>
                     </div>
                     `;

@@ -2,7 +2,11 @@ import asyncio
 from aiohttp import web
 from .job import Job
 
-
+"""
+This module defines the ApiController class which provides an HTTP interface for interacting with a Chord DHT (Distributed Hash Table) network.
+The ApiController allows users to submit jobs, check job status, interact with Minio storage, and manage buckets.
+Jobs are distributed across the Chord nodes, leveraging the DHT for decentralized job management and execution.
+"""
 class ApiController(asyncio.Protocol):
     """
     This class represent the API controller (The entry class).
@@ -77,6 +81,8 @@ class ApiController(asyncio.Protocol):
     async def get_job_status(self, request):
         job_id = request.match_info['job_id']
         job = self.jobs.get(job_id)
+        #To Do: look up jobs in the chord node as well and return the status
+
         if job:
             return web.json_response({'status': job.status, 'result': job.result})
         else:
