@@ -111,7 +111,9 @@ class ApiController(asyncio.Protocol):
         return web.json_response(status_dict)
     async def getfinger(self, request):
         ''' returns a list of finger table entries'''
-        return web.json_response({"finger":self.chord_node._fingers})
+        fingers=self.chord_node._fingers
+        fingers=list(set(fingers["addr"] for fingers in fingers))
+        return web.json_response({"finger":fingers})
 
 
     async def backup_bucket_to_luna(self, request):

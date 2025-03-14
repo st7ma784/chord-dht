@@ -50,8 +50,8 @@ class Node:
         self._id = generate_id(self._addr.encode("utf-8"), keysize=self.key_sz)
         self._numeric_id = int(self._id, 16) % self.ring_sz
 
-        self._MAX_STEPS = int(5)
-        self._MAX_SUCC = int(4)
+        self._MAX_STEPS = int(8)
+        self._MAX_SUCC = int(6)
         self._REPLICATION_COUNT = 1
 
         self._fingers = [
