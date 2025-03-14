@@ -234,7 +234,7 @@ class FileGroupers:
             yield [file],idx/total_files
     def groupByRadarAndDate(bucket,node) -> Tuple[List, float]:
         '''pools files with the same date and radar name together'''
-        total_files=len(node.MinioClient.list_objects(bucket))
+        total_files=len(list(node.MinioClient.list_objects(bucket)))
         RadarDate_default_dict = defaultdict(lambda: defaultdict(set))
         yielded_files = 0
         for file, idx in node.MinioClient.list_objects(bucket):
@@ -321,7 +321,7 @@ class FileGroupers:
                 yield list(Hour_default_dict[radar_name][entry]), yielded_files / total_num_hours
     def groupRadarsTogether(bucket,node):
         '''pools all files together'''
-        total_files=len(node.MinioClient.list_objects(bucket))
+        total_files=len(list(node.MinioClient.list_objects(bucket)))
         files=[]
         for file,idx in node.MinioClient.list_objects(bucket):
             files.append(file)
