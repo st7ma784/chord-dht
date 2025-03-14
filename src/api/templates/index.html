@@ -250,8 +250,10 @@
             .then(data => {
                 //remove all children of the div
                 const divcontainer = event.target;
-                divcontainer.removeChildren();
-
+                while (divcontainer.firstChild) {
+                    divcontainer.removeChild(divcontainer.firstChild);
+                }
+                
                 data.jobs.forEach(job => {
                     const div = document.createElement('div');
                     div.innerHTML = `
