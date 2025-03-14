@@ -351,8 +351,8 @@ class Job:
         self.file_grouper = {
             'fitacf': FileGroupers.singleFiles,
             'despeck': FileGroupers.singleFiles,
-            'combine': FileGroupers.groupByDate,
-            'combine_grid': FileGroupers.singleFiles,
+            'convert_to_daily': FileGroupers.groupByDate,
+            'combine_grids': FileGroupers.singleFiles,
             'make_grid': FileGroupers.singleFiles,
             'map_grd': FileGroupers.singleFiles,
             'test': FileGroupers.singleFiles
@@ -363,8 +363,8 @@ class Job:
         self.switcher = {
             'fitacf': Tasks.fitacf,
             'despeck': Tasks.despeck,
-            'combine': Tasks.combine,
-            'combine_grid': Tasks.combine_grid,
+            'convert_to_daily': Tasks.combine,
+            'combine_grids': Tasks.combine_grid,
             'make_grid': Tasks.make_grid,
             'map_grd': Tasks.map_grd,
             'test': Tasks.test
@@ -372,8 +372,8 @@ class Job:
         self.VisualiseSwitcher={
             'fitacf': Visualizers.visualiseFitacf,
             'despeck': Visualizers.visualiseDespeck,
-            'combine': Visualizers.visualiseCombine,
-            'combine_grid': Visualizers.visualiseCombineGrid,
+            'convert_to_daily': Visualizers.visualiseCombine,
+            'combine_grids': Visualizers.visualiseCombineGrid,
             'make_grid': Visualizers.visualiseMakeGrid,
             'map_grd': Visualizers.visualiseMapGrd
             
@@ -381,8 +381,8 @@ class Job:
         self.ObjectNameConverters={
             'fitacf': NameConverters.convertFitacfName,
             'despeck': NameConverters.convertDespeckName,
-            'combine': NameConverters.converttoDailyName,
-            'combine_grid': NameConverters.combineGridName,
+            'convert_to_daily': NameConverters.converttoDailyName,
+            'combine_grids': NameConverters.combineGridName,
             'make_grid': NameConverters.makeGridName,
             'map_grd': NameConverters.mapGrdName,
             'test': NameConverters.runName
