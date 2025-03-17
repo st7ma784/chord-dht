@@ -91,7 +91,7 @@ class ApiController(asyncio.Protocol):
     async def get_all_jobs(self, request):
         #To Do: look up jobs in the chord node as well and return the status
         jobs=[]
-        for key,val in self.chord_node._storage.get_my_data():
+        for key,val in zip(*self.chord_node._storage.get_my_data()):
             job=Job.deserialize(val)
             jobs.append({'server_idx':job.job_id,'status': job.status, 'result': job.result is not None, 'job_id':job.hash})
         response = {"jobs":jobs}
