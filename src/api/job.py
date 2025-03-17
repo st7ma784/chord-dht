@@ -228,16 +228,16 @@ class FileGroupers:
 
     radarnames=['bks','cly','cvw','fhe','fhw','gbr','han','hok','inv','kap','ker','kod','ksr','lyr','pgr','pyk','rkn','sas','sto','sye','sys','tig','wal','zho']
     
-    def singleFiles(bucket,node) -> Tuple[List, float]:
+    def singleFiles(bucket,node):
         total_files=len(list(node.MinioClient.list_objects(bucket)))
-        for file,idx in node.MinioClient.list_objects(bucket):
-            yield [file],idx/total_files
-    def groupByRadarAndDate(bucket,node) -> Tuple[List, float]:
+        for idx, file in enumerate(node.MinioClient.list_objects(bucket)):
+            yield ([file.object_name], idx / total_files)
+    def groupByRadarAndDate(bucket,node):
         '''pools files with the same date and radar name together'''
         total_files=len(list(node.MinioClient.list_objects(bucket)))
         RadarDate_default_dict = defaultdict(lambda: defaultdict(set))
         yielded_files = 0
-        for file, idx in node.MinioClient.list_objects(bucket):
+        for idx, file in enumerate(node.MinioClient.list_objects(bucket)):
             radar_name = next((name for name in FileGroupers.radarnames if name in file), None)
             if radar_name:
                 file_date = file.split(".")[0][:8]
@@ -250,11 +250,11 @@ class FileGroupers:
                 yielded_files += 1
                 yield list(RadarDate_default_dict[radar_name][date]), yielded_files / total_files
         
-    def groupByDate(bucket,node)-> Tuple[List, float]:
+    def groupByDate(bucket,node):
         '''pools files with the same date together'''
         min_date=datetime.datetime.now().timestamp()
         max_date=0
-        for file,idx in node.MinioClient.list_objects(bucket):
+        for idx, file in enumerate(node.MinioClient.list_objects(bucket)):
             file_date=int(file.split(".")[0])
             if file_date>max_date:
                 max_date=file_date
@@ -263,7 +263,7 @@ class FileGroupers:
         total_num_days=(max_date-min_date)/(24*3600)
         Date_default_dict=defaultdict(set)
         yielded_files=0
-        for file,idx in node.MinioClient.list_objects(bucket):
+        for idx, file in enumerate(node.MinioClient.list_objects(bucket)):
             Date_default_dict[file.split(".")[0][:8]].add(file)
             if len(Date_default_dict)>8:
                 yielded_files+=1
@@ -272,7 +272,7 @@ class FileGroupers:
             yielded_files+=1
             yield list(Date_default_dict[entry]),yielded_files/total_num_days
                 
-    def groupByHour(bucket,node) -> Tuple[List, float]:
+    def groupByHour(bucket,node) :
         '''pools files with the same hour together'''
         min_date = datetime.datetime.now().timestamp()
         max_date = 0
@@ -285,7 +285,7 @@ class FileGroupers:
         total_num_hours = (max_date - min_date) / 3600
         Hour_default_dict = defaultdict(set)
         yielded_files = 0
-        for file, idx in node.MinioClient.list_objects(bucket):
+        for idx, file in enumerate(node.MinioClient.list_objects(bucket)):
             file_hour = file.split(".")[0][:10]  # Assuming the hour is included in the filename
             Hour_default_dict[file_hour].add(file)
             if len(Hour_default_dict) > 24:
@@ -294,7 +294,7 @@ class FileGroupers:
         for entry in Hour_default_dict:
             yielded_files += 1
             yield list(Hour_default_dict[entry]), yielded_files / total_num_hours
-    def groupByRadarAndHour(bucket,node)-> Tuple[List, float]:
+    def groupByRadarAndHour(bucket,node):
         '''pools files with the same hour and radar name together'''
         min_date = datetime.datetime.now().timestamp()
         max_date = 0
@@ -307,7 +307,7 @@ class FileGroupers:
         total_num_hours = (max_date - min_date) / 3600
         Hour_default_dict = defaultdict(set)
         yielded_files = 0
-        for file, idx in node.MinioClient.list_objects(bucket):
+        for idx, file in enumerate(node.MinioClient.list_objects(bucket)):
             radar_name = next((name for name in FileGroupers.radarnames if name in file), None)
             if radar_name:
                 file_hour = file.split(".")[0][:10]  # Assuming the hour is included in the filename
@@ -319,17 +319,7 @@ class FileGroupers:
             for entry in Hour_default_dict[radar_name]:
                 yielded_files += 1
                 yield list(Hour_default_dict[radar_name][entry]), yielded_files / total_num_hours
-    def groupRadarsTogether(bucket,node):
-        '''pools all files together'''
-        total_files=len(list(node.MinioClient.list_objects(bucket)))
-        files=[]
-        for file,idx in node.MinioClient.list_objects(bucket):
-            files.append(file)
-            if len(files)>8:
-                yield files,idx/total_files
-                files=[]
-        if len(files)>0:
-            yield files,idx/total_files
+ 
 
 class Job:
     @staticmethod
@@ -475,11 +465,13 @@ class Job:
         self.status = 'running'
         bucket=self.data['source_bucket']
         #step2
-        for idx,files,progress in enumerate(self.file_grouper[self.data['task']](bucket,node)):
+        for idx,(files,progress) in enumerate(self.file_grouper[self.data['task']](bucket,node)):
             #group files according to task
-            print(f"putting job {self.job_id+idx} with files {files} in bucket {bucket}")
-            self.node.put_job(Job(self.job_id+idx,{'task':self.data['task'],'source_bucket':bucket,'objectname':','.join(files),'launch':False,'dest_bucket':self.data['dest_bucket'],'args':self.data['args']}))
-            self.status=str(progress)
+            data=self.data.copy()
+            data['objectname']=', '.join(files)
+            data['launch']=False
+            node.put_job(Job(str(int(self.job_id)+idx),data),ttl=3600)
+            self.status=progress
         self.status = 'completed'
         print(f"Job {self.job_id} completed")
         return 'completed'
