@@ -94,6 +94,13 @@ class Storage:
                 values.append(val)
         return keys, values
 
+    async def iterjobs(self):
+        ''' pops all jobs from the storage '''
+        jobs = []
+        for key in self._store.iterkeys():
+            job_serial=await self._store.pop(key)
+            yield key, job_serial
+    
     def get_keys(self, left: int, right: int):
         """
         Gets all keys and values of the current storage instance within range:

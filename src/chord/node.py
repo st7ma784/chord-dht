@@ -584,10 +584,8 @@ class Node:
         while True:
             try:
                 await asyncio.sleep(_fix_interval)
-                keys,values = self._storage.get_my_data()
-                for key, value in zip(keys, values):
-                    job_data = value
-                    job = Job.deserialize(job_data)
+                async for key, job_serial in self._storage.iterjobs():
+                    job = Job.deserialize(job_serial)
                     
                     if job.status == "completed":
                         continue
