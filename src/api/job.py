@@ -332,14 +332,16 @@ class Job:
         data = json.loads(string)    
 
         job = Job(data['job_id'], data['data'])
+        job.status = data['status']
+        job.result = data['result']
         return job
 
     def __init__(self, job_id, data):
         self.job_id = job_id
         self.data = data #data is a request.json()
-        self.hash=hashlib.sha1(str(data).encode()).hexdigest()
-        self.status = 'pending'
-        self.result = None
+        self.hash=data.get("hash",hashlib.sha1(str(data).encode()).hexdigest())
+        self.status = data.get('status', 'pending')
+        self.result = data.get('result', None)
         #To Do - these are probably all wrong!
         self.file_grouper = {
             'fitacf': FileGroupers.singleFiles,
