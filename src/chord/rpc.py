@@ -93,6 +93,32 @@ async def rpc_notify(succ_addr: str, my_addr: str, ring_sz: int, keysize: int) -
         print(e)
         pass
 
+async def rpc_get_job(next_node: dict, job_id: str, ttl: int) -> Optional[str]:
+    """
+    checks current node for the value or deligates to appropriate succsorsself.
+    Returns the value if it is stored on the ring.
+    Args:
+        next_node (dict): the next node.
+        key (string): The key under which a vlue shall be stored.
+        value (string): The value / data being stored.
+        ttl (int): Time to live for the message, after that the message is discared and no value is returned for that key.
+        is_replica (Boolean): Whether or not the current node is a replica.
+        ssl_ctx (ssl.SSLContext): Used for tls.
+    Returns:
+        Boolean: Whether or not the value is found
+        String: Value if one is found.
+    """
+    try:
+        host, port = next_node["addr"].split(":")
+        rpc_con = await aiomas.rpc.open_connection((host, port))
+        rep = await rpc_con.remote.get_job(job_id, ttl)
+        await rpc_con.close()
+        return rep
+    except Exception as e:
+        #logger.error(e)
+        return None
+
+
 async def rpc_get_key(
     next_node: dict, key: str, ttl: int, is_replica: bool
 ) -> Optional[str]:

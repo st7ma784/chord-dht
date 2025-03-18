@@ -417,6 +417,38 @@ class Node:
         return keys
 
     @aiomas.expose
+    async def find_job(self, job_hash, ttl:int=8, is_replica: bool=False):
+        """
+        Finds a job in the network.
+        Args:
+            job_hash (string): The hash of the job.
+            ttl (int): time to live. How long this should remain in the network.
+            is_replica (Boolean): Whether or not the current node is a replica.
+        Returns:
+            Boolean: Whether or not the value is found
+            String: Value if one is found.
+        """
+        # logger.debug(f"Finding key with TTL => {ttl} {key}")
+        if ttl <= 0:
+            return None
+        search_cnt = 1 if is_replica else self._REPLICATION_COUNT + 1
+        for idx in range(search_cnt):
+            numeric_id = int(dht_key, 16)
+            # logger.warning(f"Getting Key: {key} - {dht_key} - {numeric_id}")
+            found, value = self._find_key(job_hash)
+            if found:
+                return value
+            found, node = await self.find_successor(numeric_id)
+            if not found:
+                continue
+            # logger.debug(f"Getting key from responsible node {node}")
+            res = await rpc_find_job(
+                next_node=node, key=job_hash, ttl=ttl - 1, is_replica=idx > 0)
+            if res:
+                return res
+            
+
+    @aiomas.expose
     async def find_key(self, key: str, ttl: int = 4, is_replica: bool = False):
         """
         checks current node for the value or deligates to appropriate succsorsself.
@@ -539,7 +571,7 @@ class Node:
         return await self.put_key(key, value, ttl=ttl)
 
     async def run_job(self, job):
-        return job.run(self)
+        return await job.run(self)
         # Logic to return the result to the requester
 
     async def worker(self):
@@ -556,12 +588,15 @@ class Node:
                 for key, value in zip(keys, values):
                     job_data = value
                     job = Job.deserialize(job_data)
+                    
                     if job.status == "completed":
                         continue
                     elif job.status == "pending":
+                        job.set_status("running")
+                        self._storage.put_key(key, job.serialize())
                         print(f"Running job {job.job_id} from DHT on {self._addr}")
                         result=await self.run_job(job)
-                        job.status = "completed"
+                        job.set_status("completed")
                         self._storage.put_key(key, job.serialize())
                         print(f"Job {job.job_id} completed on {self._addr}")
             except Exception as e:

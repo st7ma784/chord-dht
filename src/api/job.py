@@ -6,6 +6,8 @@ import cv2
 import base64
 import json
 import logging
+import asyncio
+
 from collections import defaultdict
 from typing import List, Tuple
 import datetime
@@ -37,9 +39,9 @@ class Tasks:
 class NameConverters:
     #This is a class for how to convert filenames from input to output, as a crude way of ensuring sensible methods are called in the right order
     def convertFitacfName(inputFileName):
-        return inputFileName.replace('rawacf','.fitacf3').replace('.bz2','')
+        return inputFileName.replace('.rawacf','.fitacf3').replace('.bz2','')
     def convertDespeckName(inputFileName):
-        return inputFileName.replace('fitacf3','.despeck.fitacf3').replace('.bz2','')
+        return inputFileName.replace('.fitacf3','.despeck.fitacf3').replace('.bz2','')
     def converttoDailyName(inputFileName):
         object_names=inputFileName.split(",")   
         #take just the date part of the filename
@@ -49,7 +51,7 @@ class NameConverters:
         object_names=inputFileName.split(",")
         return object_names[0].replace(object_names[0].split("/")[-1],object_names[0].split("/")[-1][:8]+".north.grd")
     def makeGridName(inputFileName):
-        return inputFileName.replace('.fitacf3','grd').replace('.bz2','').replace('.despeck','')
+        return inputFileName.replace('.fitacf3','.grd').replace('.bz2','').replace('.despeck','')
     def mapGrdName(inputFileName):
         return inputFileName.replace('.grd','.map')
     def runName(inputFileName):
@@ -57,8 +59,8 @@ class NameConverters:
     
 class Visualizers:
     #This is a class for how to visualize the output of the tasks
-    def visualiseFitacf(self):
-        fitacf_data = pydarn.SuperDARNRead(self.destfile).read_fitacf()
+    def visualiseFitacf(self,destfile):
+        fitacf_data = pydarn.SuperDARNRead(destfile).read_fitacf()
 
         fan_rtn = pydarn.Fan.plot_fan(fitacf_data, scan_index=27, 
                                 colorbar_label='Velocity [m/s]')
@@ -67,7 +69,7 @@ class Visualizers:
                         boundary=True, radar_label=True,
                         groundscatter=True, ball_and_stick=True, len_factor=300,
                         coastline=True, parameter="v")
-        path=self.destfile+'.png'
+        path=destfile+'.png'
         plt.savefig(path)
         plt.close()
         data=cv2.imread(path)
@@ -76,8 +78,8 @@ class Visualizers:
         ret, buf = cv2.imencode('.png', data)
         return base64.b64encode(buf).decode('ascii')  
     
-    def visualiseDespeck(self):
-        fitacf_new = pydarn.SuperDARNRead(self.destfile, True).read_fitacf()
+    def visualiseDespeck(self,destfile):
+        fitacf_new = pydarn.SuperDARNRead(destfile, True).read_fitacf()
         fig, axs = plt.subplots(2, 4, figsize=(20, 10))
         for idx,data in enumerate([fitacf_new]):
             # Before filtering:
@@ -104,7 +106,7 @@ class Visualizers:
             axs[idx, 3].set_title('After Filtering - Fan Plot')
 
         plt.tight_layout()
-        path=self.destfile+'.png'
+        path=destfile+'.png'
         plt.savefig(path)
         plt.close()
         data=cv2.imread(path)
@@ -113,9 +115,9 @@ class Visualizers:
         ret, buf = cv2.imencode('.png', data)
         return base64.b64encode(buf).decode('ascii')
 
-    def visualiseCombine(self):
+    def visualiseCombine(self,destfile):
 
-        map_data = pydarn.SuperDARNRead().read_dmap(self.destfile)
+        map_data = pydarn.SuperDARNRead().read_dmap(destfile)
 
         fig, axs = plt.subplots(2, 1, figsize=(10, 8))
 
@@ -141,7 +143,7 @@ class Visualizers:
 
 
 
-        path=self.destfile+'.png'
+        path=destfile+'.png'
         plt.savefig(path)
         plt.close()
         data=cv2.imread(path)
@@ -150,15 +152,15 @@ class Visualizers:
         ret, buf = cv2.imencode('.png', data)
         return base64.b64encode(buf).decode('ascii')  
     
-    def visualiseCombineGrid(self):
-        grid_data=pydarn.SuperDARNRead(self.destfile).read_grid()
+    def visualiseCombineGrid(self,destfile):
+        grid_data=pydarn.SuperDARNRead(destfile).read_grid()
 
         pydarn.Grid.plot_grid(grid_data,
                             colorbar_label='Velocity (m/s)',
                             radar_label=True, line_color='blue',
                             fov_color='grey')
 
-        path=self.destfile+'.png'
+        path=destfile+'.png'
         plt.savefig(path)
         plt.close()
         data=cv2.imread(path)
@@ -167,10 +169,10 @@ class Visualizers:
         ret, buf = cv2.imencode('.png', data)
         return base64.b64encode(buf).decode('ascii') 
     
-    def visualiseMakeGrid(self):
+    def visualiseMakeGrid(self,destfile):
          #Read in GRID file
 
-        grid_data = pydarn.SuperDARNRead(self.destfile).read_grid()
+        grid_data = pydarn.SuperDARNRead(destfile).read_grid()
 
         pydarn.Grid.plot_grid(grid_data,
                             colorbar_label='Velocity (m/s)',
@@ -179,7 +181,7 @@ class Visualizers:
 
         # Plots the field of views with gridded velocities on top!  
         plt.tight_layout()
-        path=self.destfile+'.png'
+        path=destfile+'.png'
         plt.savefig(path)
         plt.close()
         data=cv2.imread(path)
@@ -188,8 +190,8 @@ class Visualizers:
         ret, buf = cv2.imencode('.png', data)
         return base64.b64encode(buf).decode('ascii')  
     
-    def visualiseMapGrd(self):
-        map_data = pydarn.SuperDARNRead().read_dmap(self.destfile)
+    def visualiseMapGrd(self,destfile):
+        map_data = pydarn.SuperDARNRead().read_dmap(destfile)
 
         fig, axs = plt.subplots(2, 1, figsize=(10, 8))
 
@@ -214,7 +216,7 @@ class Visualizers:
                                     ax=axs[1])
 
         plt.tight_layout()
-        path=self.destfile+'.png'
+        path=destfile+'.png'
         plt.savefig(path)
         plt.close()
         data=cv2.imread(path)
@@ -229,15 +231,16 @@ class FileGroupers:
     radarnames=['bks','cly','cvw','fhe','fhw','gbr','han','hok','inv','kap','ker','kod','ksr','lyr','pgr','pyk','rkn','sas','sto','sye','sys','tig','wal','zho']
     
     def singleFiles(bucket,node):
-        total_files=len(list(node.MinioClient.list_objects(bucket)))
-        for idx, file in enumerate(node.MinioClient.list_objects(bucket)):
+        total_files=len(list(node.MinioClient.list_objects(bucket,recursive=True)))
+        for idx, file in enumerate(node.MinioClient.list_objects(bucket,recursive=True)):
+            print("yielding file : {} {}".format(file.object_name,idx/total_files))
             yield ([file.object_name], idx / total_files)
     def groupByRadarAndDate(bucket,node):
         '''pools files with the same date and radar name together'''
-        total_files=len(list(node.MinioClient.list_objects(bucket)))
+        total_files=len(list(node.MinioClient.list_objects(bucket,recursive=True)))
         RadarDate_default_dict = defaultdict(lambda: defaultdict(set))
         yielded_files = 0
-        for idx, file in enumerate(node.MinioClient.list_objects(bucket)):
+        for idx, file in enumerate(node.MinioClient.list_objects(bucket,recursive=True)):
             radar_name = next((name for name in FileGroupers.radarnames if name in file), None)
             if radar_name:
                 file_date = file.split(".")[0][:8]
@@ -254,7 +257,7 @@ class FileGroupers:
         '''pools files with the same date together'''
         min_date=datetime.datetime.now().timestamp()
         max_date=0
-        for idx, file in enumerate(node.MinioClient.list_objects(bucket)):
+        for idx, file in enumerate(node.MinioClient.list_objects(bucket,recursive=True)):
             file_date=int(file.split(".")[0])
             if file_date>max_date:
                 max_date=file_date
@@ -263,7 +266,7 @@ class FileGroupers:
         total_num_days=(max_date-min_date)/(24*3600)
         Date_default_dict=defaultdict(set)
         yielded_files=0
-        for idx, file in enumerate(node.MinioClient.list_objects(bucket)):
+        for idx, file in enumerate(node.MinioClient.list_objects(bucket,recursive=True)):
             Date_default_dict[file.split(".")[0][:8]].add(file)
             if len(Date_default_dict)>8:
                 yielded_files+=1
@@ -276,7 +279,7 @@ class FileGroupers:
         '''pools files with the same hour together'''
         min_date = datetime.datetime.now().timestamp()
         max_date = 0
-        for file, idx in node.MinioClient.list_objects(bucket):
+        for file, idx in node.MinioClient.list_objects(bucket,recursive=True):
             file_date = int(file.split(".")[0])
             if file_date > max_date:
                 max_date = file_date
@@ -285,7 +288,7 @@ class FileGroupers:
         total_num_hours = (max_date - min_date) / 3600
         Hour_default_dict = defaultdict(set)
         yielded_files = 0
-        for idx, file in enumerate(node.MinioClient.list_objects(bucket)):
+        for idx, file in enumerate(node.MinioClient.list_objects(bucket,recursive=True)):
             file_hour = file.split(".")[0][:10]  # Assuming the hour is included in the filename
             Hour_default_dict[file_hour].add(file)
             if len(Hour_default_dict) > 24:
@@ -298,7 +301,7 @@ class FileGroupers:
         '''pools files with the same hour and radar name together'''
         min_date = datetime.datetime.now().timestamp()
         max_date = 0
-        for file, idx in node.MinioClient.list_objects(bucket):
+        for file, idx in node.MinioClient.list_objects(bucket,recursive=True):
             file_date = int(file.split(".")[0])
             if file_date > max_date:
                 max_date = file_date
@@ -307,7 +310,7 @@ class FileGroupers:
         total_num_hours = (max_date - min_date) / 3600
         Hour_default_dict = defaultdict(set)
         yielded_files = 0
-        for idx, file in enumerate(node.MinioClient.list_objects(bucket)):
+        for idx, file in enumerate(node.MinioClient.list_objects(bucket,recursive=True)):
             radar_name = next((name for name in FileGroupers.radarnames if name in file), None)
             if radar_name:
                 file_hour = file.split(".")[0][:10]  # Assuming the hour is included in the filename
@@ -385,9 +388,11 @@ class Job:
         elif self.data.get('launch',False):
             self.run=self.task_launcher
         else:
-            self.tmpfile='tmp{}{}'.format(self.hash[:4],self.data.get('objectname',''))
-            self.destfile='dest{}{}'.format(self.hash[:4],self.ObjectNameConverters[self.data['task']](self.data.get('objectname','')))
+            self.tmpdir='tmp{}/'.format(self.hash[:4])
+            self.destdir='dest{}/'.format(self.hash[:4])#,self.ObjectNameConverters[self.data['task']](self.data.get('objectname','')).split("/")[-1]
 
+    def set_status(self, status):
+        self.status = status
 
     def serialize(self):
         # Serialize the job to a string to be stored in the database
@@ -404,7 +409,7 @@ class Job:
         return text
 
     
-    def run_test(self,node):
+    async def run_test(self,node):
         cmd = self.switcher[self.data['task']]([], [], *self.data['args'])  
 
         os.system(cmd)
@@ -412,7 +417,7 @@ class Job:
         self.status = 'completed'
         return 'completed'
 
-    def Luna_store_job(self,node):
+    async def Luna_store_job(self,node):
         #this will be the job for running the python script to copy data from minio to LUNA. 
         #``
         print("running luna store job")
@@ -444,7 +449,7 @@ class Job:
             pass
         self.status = 'completed'
         return f"Processed {Processed} out of {total_files} files"
-    def task_launcher(self,node):
+    async def task_launcher(self,node):
         '''
         This is the task for the job. It is called by the worker node to run the job. 
         It will take an input and output bucket, 
@@ -459,35 +464,49 @@ class Job:
         step5:
         keep tabs on job ids
         '''
-        print(f"Running job {self.job_id} in job launcher")
-        print(f"Data: {self.data}")
+ 
+        if self.status == "completed":
+            # print(f"Job {self.job_id} already completed")
+            return "completed"
+        elif self.status == "running":  
+            # print(f"Running job {self.job_id} in job launcher")
+            # print(f"Data: {self.data}")
         #step1 
-        self.status = 'running'
-        bucket=self.data['source_bucket']
-        #step2
-        for idx,(files,progress) in enumerate(self.file_grouper[self.data['task']](bucket,node)):
-            #group files according to task
-            data=self.data.copy()
-            data['objectname']=', '.join(files)
-            data['launch']=False
-            node.put_job(Job(str(int(self.job_id)+idx),data),ttl=3600)
-            self.status=progress
-        self.status = 'completed'
-        print(f"Job {self.job_id} completed")
-        return 'completed'
+            bucket=self.data.get('source_bucket','')
+            task=self.data.get('task','')
+            if not bucket:
+                self.set_status("failed")
+                return 'failed'
+            #step2
+            assert task in self.file_grouper, f"Task {task} not supported"
+            for idx,(files,progress) in enumerate(self.file_grouper[self.data['task']](bucket,node)):
+                #group files according to task
+                data=self.data.copy()
+                data['objectname']=', '.join(files)
+                data['launch']=False
+                await node.put_job(Job(str(int(self.job_id)+idx),data),ttl=3600)
+                # print("Job {} launched on node".format(str(int(self.job_id)+idx)))
+                self.set_status(progress)
+            self.set_status("completed")
+            print(f"Job {self.job_id} completed")
+            return 'completed'
     
-    def run(self,node):
+    async def run(self,node):
         # Implement the job logic here
         #from the data, extract objectname, source bucket, dest bucket and task and args
         #download the object
         MinioClient=node.MinioClient
-        print(f"Running job {self.job_id} in job")
-        destfile=os.path.join('/dev/shm/',self.destfile)
+        # print(f"Running actual launched job {self.job_id} in job")
+        destfile=os.path.join('/dev/shm/',self.destdir)
+        os.makedirs(destfile,exist_ok=True)
         files=[]
+        #Download the files
         for inputfile in self.data["objectname"].split(","):
             
-            tmpfile=os.path.join('/dev/shm/',self.tmpfile,inputfile)
-                
+            tmpfile=os.path.join('/dev/shm/',self.tmpdir,inputfile.split("/")[-1])
+            destfile=os.path.join('/dev/shm/',self.destdir,self.ObjectNameConverters[self.data['task']](inputfile).split("/")[-1])
+
+            os.makedirs(tmpfile,exist_ok=True)
             try:
                 MinioClient.fget_object(self.data['source_bucket'], self.data['objectname'], tmpfile)
                 if inputfile.endswith('.bz2'):
@@ -495,24 +514,30 @@ class Job:
                     tmpfile=tmpfile[:-4]
 
             except Exception as e:
-                tmpfile=os.path.join('./',self.tmpfile)
-                destfile=os.path.join('./',self.destfile)
+                tmpfile=os.path.join('./',self.tmpdir,inputfile.split("/")[-1])
+                destfile=os.path.join('./',self.destdir,self.ObjectNameConverters[self.data['task']](inputfile).split("/")[-1])
+                os.makedirs(os.path.join('./',self.tmpdir),exist_ok=True)
+                os.makedirs(os.path.join('./',self.destdir),exist_ok=True)
                 MinioClient.fget_object(self.data['source_bucket'], self.data['objectname'], tmpfile)
                 if self.data['objectname'].endswith('.bz2'):
                     subprocess.run("bzip2 -d {}".format(tmpfile), shell=True)
                     tmpfile=tmpfile[:-4]
-                    self.data['objectname']=self.data['objectname'][:-4]
             files.append(tmpfile)
+        #Launch the task
         if self.data['task'] in self.switcher:
-            cmd = self.switcher[self.data['task']](files, destfile, *self.data['args'])
+            args=self.data.get('args',[])
+            cmd = self.switcher[self.data['task']](files, destfile, *args, **self.data)
             subprocess.run(cmd, shell=True)
         
-            MinioClient.fput_object(self.data['dest_bucket'], self.ObjectNameConverters[self.data['task']](self.data['objectname']), self.destfile)
+            MinioClient.fput_object(self.data['dest_bucket'], self.ObjectNameConverters[self.data['task']](self.data['objectname']), destfile)
+        #Try to visualise
         if self.data['task'] in self.VisualiseSwitcher:
-            self.result = self.VisualiseSwitcher[self.data['task']](self)
+            self.result = self.VisualiseSwitcher[self.data['task']](self,destfile)
+        #Clean up
         try:
-            os.remove(self.tmpfile)
-            os.remove(self.destfile)
+            os.remove(tmpfile)
+            os.remove(destfile)
+
         except:
             pass
         self.status = 'completed'
