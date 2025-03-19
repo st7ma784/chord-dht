@@ -35,7 +35,7 @@ services:
           path: ./src/
           target: /app/src/
     deploy:
-      replicas: 4
+      replicas: 19
     command: "sh -c 'python3 -u src/main.py --bootstrap_node bootstrap:6501 --minio_url 10.45.15.149:9000'"
     networks:
       - nginx_network

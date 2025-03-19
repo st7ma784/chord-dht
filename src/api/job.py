@@ -7,7 +7,7 @@ import base64
 import json
 import logging
 import asyncio
-
+from tqdm import tqdm
 from collections import defaultdict
 from typing import List, Tuple
 import datetime
@@ -232,8 +232,8 @@ class FileGroupers:
     
     def singleFiles(bucket,node):
         total_files=len(list(node.MinioClient.list_objects(bucket,recursive=True)))
-        for idx, file in enumerate(node.MinioClient.list_objects(bucket,recursive=True)):
-            print("yielding file : {} {}".format(file.object_name,idx/total_files))
+        for idx, file in enumerate(tqdm(node.MinioClient.list_objects(bucket,recursive=True))):
+            # print("yielding file : {} {}".format(file.object_name,idx/total_files))
             yield ([file.object_name], idx / total_files)
     def groupByRadarAndDate(bucket,node):
         '''pools files with the same date and radar name together'''
@@ -411,7 +411,7 @@ class Job:
         return text
 
     
-    async def run_test(self,node):
+    def run_test(self,node):
         cmd = self.switcher[self.data['task']]([], [], *self.data['args'])  
 
         os.system(cmd)
@@ -473,7 +473,7 @@ class Job:
         elif self.status == "running":  
             # print(f"Running job {self.job_id} in job launcher")
             # print(f"Data: {self.data}")
-        #step1 
+            #step1 
             bucket=self.data.get('source_bucket','')
             task=self.data.get('task','')
             if not bucket:
@@ -481,67 +481,76 @@ class Job:
                 return 'failed'
             #step2
             assert task in self.file_grouper, f"Task {task} not supported"
+
+            
             for idx,(files,progress) in enumerate(self.file_grouper[self.data['task']](bucket,node)):
                 #group files according to task
                 data=self.data.copy()
                 data['objectname']=', '.join(files)
                 data['launch']=False
                 await node.put_job(Job(str(int(self.job_id)+idx),data),ttl=3600)
-                # print("Job {} launched on node".format(str(int(self.job_id)+idx)))
                 self.set_status(progress)
             self.set_status("completed")
-            print(f"Job {self.job_id} completed")
             return 'completed'
     
     async def run(self,node):
         # Implement the job logic here
         #from the data, extract objectname, source bucket, dest bucket and task and args
-        #download the object
-        MinioClient=node.MinioClient
-        # print(f"Running actual launched job {self.job_id} in job")
-        destfile=os.path.join('/dev/shm/',self.destdir)
-        os.makedirs(destfile,exist_ok=True)
-        files=[]
-        #Download the files
-        for inputfile in self.data["objectname"].split(","):
-            
-            tmpfile=os.path.join('/dev/shm/',self.tmpdir,inputfile.split("/")[-1])
-            destfile=os.path.join('/dev/shm/',self.destdir,self.ObjectNameConverters[self.data['task']](inputfile).split("/")[-1])
-
-            os.makedirs(tmpfile,exist_ok=True)
-            try:
-                MinioClient.fget_object(self.data['source_bucket'], self.data['objectname'], tmpfile)
-                if inputfile.endswith('.bz2'):
-                    subprocess.run("bzip2 -d {}".format(tmpfile), shell=True)
-                    tmpfile=tmpfile[:-4]
-
-            except Exception as e:
-                tmpfile=os.path.join('./',self.tmpdir,inputfile.split("/")[-1])
-                destfile=os.path.join('./',self.destdir,self.ObjectNameConverters[self.data['task']](inputfile).split("/")[-1])
-                os.makedirs(os.path.join('./',self.tmpdir),exist_ok=True)
-                os.makedirs(os.path.join('./',self.destdir),exist_ok=True)
-                MinioClient.fget_object(self.data['source_bucket'], self.data['objectname'], tmpfile)
-                if self.data['objectname'].endswith('.bz2'):
-                    subprocess.run("bzip2 -d {}".format(tmpfile), shell=True)
-                    tmpfile=tmpfile[:-4]
-            files.append(tmpfile)
-        #Launch the task
-        if self.data['task'] in self.switcher:
-            args=self.data.get('args',[])
-            cmd = self.switcher[self.data['task']](files, destfile, *args, **self.data)
-            subprocess.run(cmd, shell=True)
+        #download the object   
+        '''
+        In an ideal world, we'd use the python natives of IOBuffer and streams, but because our commands are all shell commands, we need to download the files to disk **siigh**
         
-            MinioClient.fput_object(self.data['dest_bucket'], self.ObjectNameConverters[self.data['task']](self.data['objectname']), destfile)
-        #Try to visualise
-        if self.data['task'] in self.VisualiseSwitcher:
-            self.result = self.VisualiseSwitcher[self.data['task']](self,destfile)
-        #Clean up
-        try:
-            os.remove(tmpfile)
-            os.remove(destfile)
+        '''
 
-        except:
-            pass
-        self.status = 'completed'
-        return self.result
+        #We don't need this if statement but it's a good sanity check
+        if self.status == "completed":
+            return self.result
+        elif self.status == "running":  
+            MinioClient=node.MinioClient
+            # print(f"Running actual launched job {self.job_id} in job")
+            destfile=os.path.join('/dev/shm/',self.destdir)
+            os.makedirs(destfile,exist_ok=True)
+            files=[]
+            #Download the files
+            for inputfile in self.data["objectname"].split(","):
+                
+                tmpfile=os.path.join('/dev/shm/',self.tmpdir,inputfile.split("/")[-1])
+                destfile=os.path.join('/dev/shm/',self.destdir,self.ObjectNameConverters[self.data['task']](inputfile).split("/")[-1])
+
+                os.makedirs(tmpfile,exist_ok=True)
+                try:
+                    MinioClient.fget_object(self.data['source_bucket'], self.data['objectname'], tmpfile)
+                    if inputfile.endswith('.bz2'):
+                        subprocess.run("bzip2 -d {}".format(tmpfile), shell=True)
+                        tmpfile=tmpfile[:-4]
+
+                except Exception as e:
+                    tmpfile=os.path.join('./',self.tmpdir,inputfile.split("/")[-1])
+                    destfile=os.path.join('./',self.destdir,self.ObjectNameConverters[self.data['task']](inputfile).split("/")[-1])
+                    os.makedirs(os.path.join('./',self.tmpdir),exist_ok=True)
+                    os.makedirs(os.path.join('./',self.destdir),exist_ok=True)
+                    MinioClient.fget_object(self.data['source_bucket'], self.data['objectname'], tmpfile)
+                    if self.data['objectname'].endswith('.bz2'):
+                        subprocess.run("bzip2 -d {}".format(tmpfile), shell=True)
+                        tmpfile=tmpfile[:-4]
+                files.append(tmpfile)
+            #Launch the task
+            if self.data['task'] in self.switcher:
+                args=self.data.get('args',[])
+                cmd = self.switcher[self.data['task']](files, destfile, *args, **self.data)
+                subprocess.run(cmd, shell=True)
+            
+                MinioClient.fput_object(self.data['dest_bucket'], self.ObjectNameConverters[self.data['task']](self.data['objectname']), destfile)
+            #Try to visualise
+            if self.data['task'] in self.VisualiseSwitcher:
+                self.result = self.VisualiseSwitcher[self.data['task']](self,destfile)
+            #Clean up
+            try:
+                os.remove(tmpfile)
+                os.remove(destfile)
+
+            except:
+                pass
+            self.set_status('completed')
+            return self.result
 

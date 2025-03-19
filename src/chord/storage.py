@@ -55,13 +55,12 @@ class Storage:
         """
         #convert value to bytes 
         _byte_val = value.encode("utf-8")
-        # logger.debug(f"Saving Key: {key} with ttl {ttl}secs")
         try:
             return self._store.set(key, value=value, expire=ttl, tag=self.make_digest(_byte_val))
         except Exception as e:
-            # logger.error(e)
+            print(e)
+            print("Error in put_key")
             return False
-
     def _del_key(self, key):
         """
         Deletes the given `key` from storage.
@@ -82,8 +81,6 @@ class Storage:
     def get_my_data(self):
         """
         Gets all keys and values of the current storage instance.
-        Args:
-            key (string): The key to be deleted.
         """
         keys = []
         values = []

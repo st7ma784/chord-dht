@@ -8,6 +8,7 @@ from chord.storage import Storage
 from minio import Minio
 from typing import Optional
 import logging
+from contextlib import suppress
 logger = logging.getLogger(__name__)
 class Node:
     """
@@ -433,7 +434,7 @@ class Node:
             return None
         search_cnt = 1 if is_replica else self._REPLICATION_COUNT + 1
         for idx in range(search_cnt):
-            numeric_id = int(dht_key, 16)
+            numeric_id = int(job_hash, 16)
             # logger.warning(f"Getting Key: {key} - {dht_key} - {numeric_id}")
             found, value = self._find_key(job_hash)
             if found:
@@ -569,10 +570,25 @@ class Node:
         value = job.serialize()
         #convert value dict to string
         return await self.put_key(key, value, ttl=ttl)
-
+    
     async def run_job(self, job):
+        #soooo... this is where we could do this in a more async way - but for now we will just run the job - because we need to check they complete atomically and dont get lost
+        # we also want to check the job status and only run if it is pending    
         return await job.run(self)
+        
         # Logic to return the result to the requester
+
+
+    async def incomplete_jobs(self):
+        while True:
+            print("iterating through once!")
+            keys, values = self._storage.get_my_data()
+            for key, value in zip(keys, values):
+                job = Job.deserialize(value)
+                if job.status == "pending":
+                    self._storage.del_keys([key])
+                    yield (key,job)
+            await asyncio.sleep(10)
 
     async def worker(self):
         """
@@ -583,20 +599,20 @@ class Node:
     
         while True:
             try:
-                await asyncio.sleep(_fix_interval)
-                async for key, job_serial in self._storage.iterjobs():
-                    job = Job.deserialize(job_serial)
-                    
-                    if job.status == "completed":
-                        continue
-                    elif job.status == "pending":
+                async for key, job in self.incomplete_jobs():
+                    await asyncio.sleep(_fix_interval)
+                    try:
                         job.set_status("running")
-                        self._storage.put_key(key, job.serialize())
                         print(f"Running job {job.job_id} from DHT on {self._addr}")
-                        result=await self.run_job(job)
-                        job.set_status("completed")
-                        self._storage.put_key(key, job.serialize())
+                        result= await self.run_job(job)
                         print(f"Job {job.job_id} completed on {self._addr}")
+                        
+                    except Exception as e:
+                        print(f"Job {job.job_id} failed on {self._addr}")
+                        print(e)
+                        job.set_status("failed")
+                    finally:
+                        self._storage.put_key(key, job.serialize())
             except Exception as e:
                 print(e)
                 pass
