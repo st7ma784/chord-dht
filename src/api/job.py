@@ -339,9 +339,16 @@ class Job:
     def __init__(self, job_id, data):
         self.job_id = job_id
         self.data = data #data is a request.json()
+        self.data.update({'job_id': job_id})
         self.hash=data.get("hash",hashlib.sha1(str(data).encode()).hexdigest())
+        if "hash" not in data:
+            self.data.update({"hash":self.hash})
         self.status = data.get('status', 'pending')
         self.result = data.get('result', None)
+        if "status" not in data:
+            self.data.update({"status":self.status})
+        if "result" not in data:
+            self.data.update({"result":self.result})
         #To Do - these are probably all wrong!
         self.file_grouper = {
             'fitacf': FileGroupers.singleFiles,
