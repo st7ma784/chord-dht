@@ -125,7 +125,7 @@ class ApiController(asyncio.Protocol):
     def get_routes(self):
         return [
             #routes for interactive funtionalities
-            web.get('/job_status', self.get_job_status), # will be used by loading bar per job
+            web.get('/getjob', self.get_job_status), # will be used by loading bar per job
             web.get('/getjobs', self.get_all_jobs), # will be used by container for seeing running jobs
             web.get('/nodes_status', self.get_nodes), # will be used by container for showing node status w/ network info
             #routes for submitting jobs - either bulk - or single 

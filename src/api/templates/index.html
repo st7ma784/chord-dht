@@ -274,7 +274,7 @@
                     // add link to send a get request with the job hash in the request
                     if (job.job_id) {
                         const a = document.createElement('a');
-                        a.href = `/job_status/${job.job_id}`;
+                        a.href = `/getjob?hash=${job.job_id}`;
                         a.textContent = 'View Job';
                         div.appendChild(a);
                     }

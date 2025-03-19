@@ -432,6 +432,7 @@ class Node:
         # logger.debug(f"Finding key with TTL => {ttl} {key}")
         if ttl <= 0:
             return None
+        job_hash = job_hash[:self.key_sz]
         search_cnt = 1 if is_replica else self._REPLICATION_COUNT + 1
         for idx in range(search_cnt):
             numeric_id = int(job_hash, 16)
