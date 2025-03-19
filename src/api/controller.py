@@ -96,7 +96,7 @@ class ApiController(asyncio.Protocol):
         jobs=[]
         for key,val in zip(*self.chord_node._storage.get_my_data()):
             job=Job.deserialize(val)
-            jobs.append({'server_idx':job.job_id,'status': job.status, 'result': job.result is not None, 'job_id':job.hash})
+            jobs.append({'server_idx':job.job_id,'status': job.status, 'result': job.result, 'job_id':job.hash})
         response = {"jobs":jobs}
         return web.json_response(response)
     
