@@ -79,7 +79,7 @@ class ApiController(asyncio.Protocol):
         return web.json_response({'job_id': job_id, 'keys': keys})
 
     async def get_job_status(self, request):
-        job_id = request.match_info['job_id']
+        job_id = request.match_info['hash']
         serial=self.chord_node.find_job(job_id)
         if serial:
             Job=Job.deserialize(serial)
@@ -87,7 +87,7 @@ class ApiController(asyncio.Protocol):
         #To Do: look up jobs in the chord node as well and return the status
 
             if Job:
-                return web.json_response({'status': Job.status, 'result': Job.result})
+                return web.json_response(Job.data)
         else:
             return web.json_response({'error': 'Job not found'}, status=404)
         
@@ -125,7 +125,7 @@ class ApiController(asyncio.Protocol):
     def get_routes(self):
         return [
             #routes for interactive funtionalities
-            web.get('/jobs/{job_id}', self.get_job_status), # will be used by loading bar per job
+            web.get('/job_status', self.get_job_status), # will be used by loading bar per job
             web.get('/getjobs', self.get_all_jobs), # will be used by container for seeing running jobs
             web.get('/nodes_status', self.get_nodes), # will be used by container for showing node status w/ network info
             #routes for submitting jobs - either bulk - or single 

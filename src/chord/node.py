@@ -581,7 +581,7 @@ class Node:
 
     async def incomplete_jobs(self):
         while True:
-            print("iterating through once!")
+            # print("iterating through once!")
             keys, values = self._storage.get_my_data()
             for key, value in zip(keys, values):
                 job = Job.deserialize(value)

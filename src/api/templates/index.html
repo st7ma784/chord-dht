@@ -258,10 +258,28 @@
                     const div = document.createElement('div');
                     div.innerHTML = `
                     <h3>${job.server_idx}</h3>
-                    <a href="/jobs/{job.job_id}" target="_blank">View Job</a>
                     `;
+                    if (job.task) {
+                        div.innerHTML += `<p>Task: ${job.task}</p>`;
+                    }
+                    if (job.source_bucket) {
+                        div.innerHTML += `<p>Source Bucket: ${job.source_bucket}</p>`;
+                    }
+                    if (job.dest_bucket) {
+                        div.innerHTML += `<p>Dest Bucket: ${job.dest_bucket}</p>`;
+                    }
+                    if (job.luna) {
+                        div.innerHTML += `<p>Luna: ${job.luna}</p>`;
+                    }
+                    // add link to send a get request with the job hash in the request
+                    if (job.job_id) {
+                        const a = document.createElement('a');
+                        a.href = `/job_status/${job.job_id}`;
+                        a.textContent = 'View Job';
+                        div.appendChild(a);
+                    }
                     if (job.result) {
-                        div.innerHTML += '<canvas id="canvasMask" width="800" height="800"></canvas>';
+                        div.innerHTML += '<canvas id="canvasMask" width="100" height="100"></canvas>';
                         const ctxcanvasMask = div.querySelector('canvas').getContext('2d');
                         const img = new Image();
                         img.src = 'data:image/jpeg;base64,' + job.result;
