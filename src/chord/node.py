@@ -445,7 +445,7 @@ class Node:
                 continue
             # logger.debug(f"Getting key from responsible node {node}")
             res = await rpc_find_job(
-                next_node=node, key=job_hash, ttl=ttl - 1, is_replica=idx > 0)
+                next_node=node, job_id=job_hash, ttl=ttl - 1)
             if res:
                 return res
             

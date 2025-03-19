@@ -79,15 +79,16 @@ class ApiController(asyncio.Protocol):
         return web.json_response({'job_id': job_id, 'keys': keys})
 
     async def get_job_status(self, request):
-        job_id = request.match_info['hash']
-        serial=self.chord_node.find_job(job_id)
+        print(request.keys())
+        job_id = request.query['hash']
+        serial=await self.chord_node.find_job(job_id)
         if serial:
-            Job=Job.deserialize(serial)
+            job=Job.deserialize(serial)
 
         #To Do: look up jobs in the chord node as well and return the status
 
-            if Job:
-                return web.json_response(Job.data)
+            if job:
+                return web.json_response(job.data)
         else:
             return web.json_response({'error': 'Job not found'}, status=404)
         

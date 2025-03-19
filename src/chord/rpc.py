@@ -93,7 +93,7 @@ async def rpc_notify(succ_addr: str, my_addr: str, ring_sz: int, keysize: int) -
         print(e)
         pass
 
-async def rpc_get_job(next_node: dict, job_id: str, ttl: int) -> Optional[str]:
+async def rpc_find_job(next_node: dict, job_id: str, ttl: int) -> Optional[str]:
     """
     checks current node for the value or deligates to appropriate succsorsself.
     Returns the value if it is stored on the ring.
@@ -111,7 +111,7 @@ async def rpc_get_job(next_node: dict, job_id: str, ttl: int) -> Optional[str]:
     try:
         host, port = next_node["addr"].split(":")
         rpc_con = await aiomas.rpc.open_connection((host, port))
-        rep = await rpc_con.remote.get_job(job_id, ttl)
+        rep = await rpc_con.remote.find_job(job_id, ttl)
         await rpc_con.close()
         return rep
     except Exception as e:
