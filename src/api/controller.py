@@ -49,7 +49,7 @@ class ApiController(asyncio.Protocol):
         job = Job(job_id, data)
         self.jobs[job_id] = job
         # Logic to move job to relevant worker
-        response= await self.chord_node.put_job(job,ttl=36000)
+        response= await self.chord_node.put_job(job,ttl=3600)
         return web.Response(text="Test DHT web request processed from node {} \n given jobid: {} landing on nodes {}".format(self.chord_node._id,job_id, response))
 
     async def get_buckets(self, request):
@@ -73,13 +73,13 @@ class ApiController(asyncio.Protocol):
         job = Job(job_id, data)
         self.jobs[job_id] = job
         # Logic to move job to relevant worker
-        print(f"Adding job {job_id} to chord node")
-        keys= await self.chord_node.put_job(job,ttl=36000)
-        print("Job {} added to chord with location: ".format(job_id,keys))
+        # print(f"Adding job {job_id} to chord node")
+        keys= await self.chord_node.put_job(job,ttl=3600)
+        # print("Job {} added to chord with location: ".format(job_id,keys))
         return web.json_response({'job_id': job_id, 'keys': keys})
 
     async def get_job_status(self, request):
-        print(request.keys())
+        # print(request.keys())
         job_id = request.query['hash']
         serial=await self.chord_node.find_job(job_id)
         if serial:

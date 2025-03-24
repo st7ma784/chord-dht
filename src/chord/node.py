@@ -288,7 +288,7 @@ class Node:
             # numeric_id = int(next_id, 16)
             found, succ = await self.find_successor(next_id)
             if found and self._fingers[self._next] != succ:
-                print(f"Finger {self._next} updated from {self._fingers[self._next]['addr']} to {succ}.")
+                # print(f"Finger {self._next} updated from {self._fingers[self._next]['addr']} to {succ}.")
                 self._fingers[self._next] = succ
             #        while True:
             # await asyncio.sleep(_fix_interval)
@@ -375,7 +375,7 @@ class Node:
             ring_sz=self.ring_sz,
         ):
             self._predecessor = n
-            print(f"New predecessor {self._predecessor}")
+            # print(f"New predecessor {self._predecessor}")
 
     @aiomas.expose
     def save_key(self, key: str, value: str, ttl: int):
@@ -386,7 +386,7 @@ class Node:
             value (string): The value / data being stored.
             ttl (int): time to live. How long this should remain in the network.
         """
-        print(f"Saving key {key} => {value} in my storage.")
+        # print(f"Saving key {key} => {value} in my storage.")
         return self._storage.put_key(key, value, ttl=ttl)
 
     @aiomas.expose
@@ -409,7 +409,7 @@ class Node:
             # logger.warning(f"Putting Key: {key} - {dht_key} - {numeric_id}")
             found, next_node = await self.find_successor(numeric_id)
             if found:
-                print(f"putting key {key} on node {next_node['addr']}")
+                # print(f"putting key {key} on node {next_node['addr']}")
                 await rpc_save_key(
                     next_node=next_node, key=key, value=value,ttl=ttl)
                 

@@ -340,7 +340,7 @@ class Job:
         self.job_id = job_id
         self.data = data #data is a request.json()
         self.data.update({'job_id': job_id})
-        self.hash=data.get("hash",hashlib.sha1(str(data).encode()).hexdigest())
+        self.hash=data.get("hash",hashlib.sha1(str(data).encode("utf-8")).hexdigest())
         if "hash" not in data:
             self.data.update({"hash":self.hash})
         self.status = data.get('status', 'pending')
@@ -493,6 +493,8 @@ class Job:
             for idx,(files,progress) in enumerate(self.file_grouper[self.data['task']](bucket,node)):
                 #group files according to task
                 data=self.data.copy()
+                #remove hash from data
+                data.pop('hash',None)
                 data['objectname']=', '.join(files)
                 data['launch']=False
                 await node.put_job(Job(str(int(self.job_id)+idx),data),ttl=3600)

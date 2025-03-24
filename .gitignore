@@ -123,3 +123,4 @@ htmlcov
 
 # Local Netlify folder
 .netlify
+perf_results/

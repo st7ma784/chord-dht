@@ -6,9 +6,11 @@ services:
     command: --interval 30
 
   bootstrap:
-    # build:
-    #   context: .
+    build:
+      context: .
     image: st7ma784/superdarn_dhtworker:latest
+    cap_add:
+      - SYS_ADMIN
     labels:
       - "com.centurylinklabs.watchtower.enable=true"
     command: "sh -c 'python3 -u src/main.py --minio_url 10.48.163.59:9000'"
@@ -24,9 +26,15 @@ services:
     #This means if the code writes to /app/perf_results, it will be available on the host machine at ./perf_results
       - ./perf_results:/app/perf_results 
   node:
-    # build:
-    #   context: .
+    restart:
+      always
+    build:
+      context: .
     image: st7ma784/superdarn_dhtworker:latest
+    cap_add:
+      - SYS_ADMIN
+      - PERFMON
+      - SYS_PTRACE
     labels:
       - "com.centurylinklabs.watchtower.enable=true"
     depends_on:

@@ -57,3 +57,13 @@ This project is licensed under the MIT License. See the [LICENSE](LICENSE) file 
 - [Chord DHT](https://pdos.csail.mit.edu/papers/ton:chord/paper-ton.pdf)
 - [aiohttp](https://docs.aiohttp.org/en/stable/)
 - [Minio](https://min.io/)
+
+## To use PERF in docker 
+1. the host system will be insecure!! 
+2. on the host run 
+```sh
+sudo sysctl kernel.perf_event_paranoid=-1
+sudo sh -c 'echo "kernel.kptr_restrict=0" >> /etc/sysctl.conf'
+sudo sysctl -p
+```
+3. set the debug flag in job to add perf recording.
