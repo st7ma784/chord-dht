@@ -11,7 +11,7 @@ services:
     image: st7ma784/superdarn_dhtworker:latest
     labels:
       - "com.centurylinklabs.watchtower.enable=true"
-    command: "sh -c 'python3 -u src/main.py --minio_url 10.45.15.149:9000'"
+    command: "sh -c 'python3 -u src/main.py --minio_url 10.48.163.59:9000'"
     develop:
       watch:
         - action: sync+restart
@@ -41,7 +41,7 @@ services:
           target: /app/src/
     deploy:
       replicas: 3
-    command: "sh -c 'python3 -u src/main.py --bootstrap_node bootstrap:6501 --minio_url 10.45.15.149:9000'"
+    command: "sh -c 'python3 -u src/main.py --bootstrap_node bootstrap:6501 --minio_url 10.48.163.59:9000'"
     networks:
       - nginx_network
   nginx:
