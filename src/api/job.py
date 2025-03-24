@@ -545,6 +545,13 @@ class Job:
             if self.data['task'] in self.switcher:
                 args=self.data.get('args',[])
                 cmd = self.switcher[self.data['task']](files, destfile, *args, **self.data)
+                if os.getenv('DEBUG',False):
+                    
+                    os.makedirs('/app/perf_results/{}/'.format(self.data['task']),exist_ok=True)
+                    #land results in /app/perf_results/{self.data['task']}/
+                    #write the perf results to the file
+                    cmd='perf record -g {} && perf report --stdio > /app/perf_results/{}/{}.txt'.format(cmd,self.data['task'],self.data['objectname'].split("/")[-1])
+                        
                 subprocess.run(cmd, shell=True)
             
                 MinioClient.fput_object(self.data['dest_bucket'], self.ObjectNameConverters[self.data['task']](self.data['objectname']), destfile)

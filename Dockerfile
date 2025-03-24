@@ -5,6 +5,10 @@ FROM st7ma784/superdarn_rstbase:latest
 
 RUN apt-get install -y build-essential
 
+# add in perf tools like perf and vtune
+RUN apt-get install -y linux-tools-common linux-tools-generic linux-tools-`uname -r` linux-tools-`uname -r`-generic
+
+
 # Install python dependencies
 RUN pip install -U pip
 WORKDIR /app
