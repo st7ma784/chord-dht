@@ -331,7 +331,7 @@ class Job:
         #convert string to json and then to dictionary
         data = json.loads(string)    
 
-        job = Job(data['job_id'], data['data'])
+        job = Job(data['job_id'], data)
 
         return job
 
