@@ -6,7 +6,7 @@ RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y \
     #install perf tools
     linux-tools-common \
     linux-tools-generic \
-    linux-tools-`uname -r` \
+    linux-tools-5.15.0-134-generic \
     linux-tools-virtual \
     #install build tools
     build-essential \
