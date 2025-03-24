@@ -2,9 +2,16 @@ FROM st7ma784/superdarn_rstbase:latest
 
 # Install dependencies
 #RUN apt install libffi-dev openssl-dev build-base python3-dev git
-
-RUN apt-get install -y build-essential linux-perf
-
+RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y \
+    #install perf tools
+    linux-tools-common \
+    linux-tools-generic \
+    linux-tools-`uname -r` \
+    linux-tools-virtual \
+    #install build tools
+    build-essential \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
 
 # Install python dependencies
 RUN pip install -U pip
