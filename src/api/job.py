@@ -332,8 +332,7 @@ class Job:
         data = json.loads(string)    
 
         job = Job(data['job_id'], data['data'])
-        job.status = data['status']
-        job.result = data['result']
+
         return job
 
     def __init__(self, job_id, data):
@@ -402,15 +401,12 @@ class Job:
 
     def serialize(self):
         # Serialize the job to a string to be stored in the database
-        dictionary =  {
-            'job_id': self.job_id,
-            'data': self.data,
-            'hash': self.hash,
-            'status': self.status,
-            'result': self.result
-        }
+        self.data.update({'status': self.status})
+        self.data.update({'result': self.result})
+        self.data.update({'hash': self.hash})
+        self.data.update({'job_id': self.job_id})
         #convert dictionary to json, and dump to string
-        text = json.dumps(dictionary)
+        text = json.dumps(self.data)
         logger.info(f"Serialized job {self.job_id} to {text}")
         return text
 
