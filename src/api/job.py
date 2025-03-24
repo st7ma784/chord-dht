@@ -545,7 +545,7 @@ class Job:
             if self.data['task'] in self.switcher:
                 args=self.data.get('args',[])
                 cmd = self.switcher[self.data['task']](files, destfile, *args, **self.data)
-                if os.getenv('DEBUG',False):
+                if True:
                     
                     os.makedirs('/app/perf_results/{}/'.format(self.data['task']),exist_ok=True)
                     #land results in /app/perf_results/{self.data['task']}/
