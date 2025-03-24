@@ -21,7 +21,8 @@ services:
       - nginx_network
     #add a volume for debugging
     volumes:
-      - ./perf_results:/app/perf_results
+    #This means if the code writes to /app/perf_results, it will be available on the host machine at ./perf_results
+      - ./perf_results:/app/perf_results 
   node:
     # build:
     #   context: .

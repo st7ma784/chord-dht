@@ -588,7 +588,7 @@ class Node:
             for key, value in zip(keys, values):
                 job = Job.deserialize(value)
                 if job.status == "pending":
-                    self._storage.del_keys([key])
+                    # self._storage.del_keys([key])
                     yield (key,job)
             await asyncio.sleep(10)
 
