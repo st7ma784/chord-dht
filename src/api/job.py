@@ -550,7 +550,7 @@ class Job:
                     os.makedirs('/app/perf_results/{}/'.format(self.data['task']),exist_ok=True)
                     #land results in /app/perf_results/{self.data['task']}/
                     #write the perf results to the file
-                    cmd='perf record -g {} && perf report --stdio > /app/perf_results/{}/{}.txt'.format(cmd,self.data['task'],self.data['objectname'].split("/")[-1])
+                    cmd='perf record -g --call-graph dwarf {} && perf report --stdio > /app/perf_results/{}/{}.txt'.format(cmd,self.data['task'],self.data['objectname'].split("/")[-1])
                         
                 subprocess.run(cmd, shell=True)
             
