@@ -17,8 +17,6 @@ services:
         - action: sync+restart
           path: ./src/
           target: /app/src/
-    environment:
-      - DEBUG= True
     networks:
       - nginx_network
     #add a volume for debugging
