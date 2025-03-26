@@ -22,9 +22,9 @@ services:
     networks:
       - nginx_network
     #add a volume for debugging
-    volumes:
-    #This means if the code writes to /app/perf_results, it will be available on the host machine at ./perf_results
-      - ./perf_results:/app/perf_results 
+    # volumes:
+    # #This means if the code writes to /app/perf_results, it will be available on the host machine at ./perf_results
+    #   - ./perf_results:/app/perf_results 
   node:
     restart:
       always

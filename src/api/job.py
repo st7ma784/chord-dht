@@ -243,11 +243,11 @@ class FileGroupers:
         for idx, file in enumerate(node.MinioClient.list_objects(bucket,recursive=True)):
             radar_name = next((name for name in FileGroupers.radarnames if name in file), None)
             if radar_name:
-                file_date = file.split(".")[0][:8]
-                RadarDate_default_dict[radar_name][file_date].add(file)
-                if len(RadarDate_default_dict[radar_name]) > 8:
+                file_date = file.object_name.split("/")[-1].split(".")[0][:8]
+                RadarDate_default_dict[radar_name][file_date].add(file.object_name)
+                if len(RadarDate_default_dict[radar_name][file_date]) > 8:
                     yielded_files += 1
-                    yield list(RadarDate_default_dict[radar_name]), yielded_files / total_files
+                    yield list(RadarDate_default_dict[radar_name][file_date]), yielded_files / total_files
         for radar_name in RadarDate_default_dict:
             for date in RadarDate_default_dict[radar_name]:
                 yielded_files += 1
@@ -258,7 +258,8 @@ class FileGroupers:
         min_date=datetime.datetime.now().timestamp()
         max_date=0
         for idx, file in enumerate(node.MinioClient.list_objects(bucket,recursive=True)):
-            file_date=int(file.split(".")[0])
+            file_date=int(file.object_name.split("/")[-1].split(".")[0][:8])
+            # print("file date: {}".format(file_date))
             if file_date>max_date:
                 max_date=file_date
             if file_date<min_date:
@@ -267,10 +268,10 @@ class FileGroupers:
         Date_default_dict=defaultdict(set)
         yielded_files=0
         for idx, file in enumerate(node.MinioClient.list_objects(bucket,recursive=True)):
-            Date_default_dict[file.split(".")[0][:8]].add(file)
-            if len(Date_default_dict)>8:
+            Date_default_dict[file.object_name.split("/")[-1].split(".")[0][:8]].add(file.object_name)
+            if len(Date_default_dict[file.object_name.split("/")[-1].split(".")[0][:8]])>8:
                 yielded_files+=1
-                yield list(Date_default_dict),yielded_files/total_num_days
+                yield list(Date_default_dict[file.object_name.split("/")[-1].split(".")[0][:8]]),yielded_files/total_num_days
         for entry in Date_default_dict:
             yielded_files+=1
             yield list(Date_default_dict[entry]),yielded_files/total_num_days
@@ -280,7 +281,7 @@ class FileGroupers:
         min_date = datetime.datetime.now().timestamp()
         max_date = 0
         for file, idx in node.MinioClient.list_objects(bucket,recursive=True):
-            file_date = int(file.split(".")[0])
+            file_date = int(file.object_name.split("/")[-1].split(".")[0][:10])
             if file_date > max_date:
                 max_date = file_date
             if file_date < min_date:
@@ -289,11 +290,11 @@ class FileGroupers:
         Hour_default_dict = defaultdict(set)
         yielded_files = 0
         for idx, file in enumerate(node.MinioClient.list_objects(bucket,recursive=True)):
-            file_hour = file.split(".")[0][:10]  # Assuming the hour is included in the filename
-            Hour_default_dict[file_hour].add(file)
-            if len(Hour_default_dict) > 24:
+            file_hour = file.object_name.split("/")[-1].split(".")[0][:10]  # Assuming the hour is included in the filename
+            Hour_default_dict[file_hour].add(file.object_name)
+            if len(Hour_default_dict[file_hour]) > 24:
                 yielded_files += 1
-                yield list(Hour_default_dict), yielded_files / total_num_hours
+                yield list(Hour_default_dict[file_hour]), yielded_files / total_num_hours
         for entry in Hour_default_dict:
             yielded_files += 1
             yield list(Hour_default_dict[entry]), yielded_files / total_num_hours
@@ -302,7 +303,7 @@ class FileGroupers:
         min_date = datetime.datetime.now().timestamp()
         max_date = 0
         for file, idx in node.MinioClient.list_objects(bucket,recursive=True):
-            file_date = int(file.split(".")[0])
+            file_date = int(file.object_name.split("/")[-1].split(".")[0])
             if file_date > max_date:
                 max_date = file_date
             if file_date < min_date:
@@ -311,13 +312,13 @@ class FileGroupers:
         Hour_default_dict = defaultdict(set)
         yielded_files = 0
         for idx, file in enumerate(node.MinioClient.list_objects(bucket,recursive=True)):
-            radar_name = next((name for name in FileGroupers.radarnames if name in file), None)
+            radar_name = next((name for name in FileGroupers.radarnames if name in file.object_name), None)
             if radar_name:
-                file_hour = file.split(".")[0][:10]  # Assuming the hour is included in the filename
-                Hour_default_dict[radar_name][file_hour].add(file)
-                if len(Hour_default_dict[radar_name]) > 24:
+                file_hour = file.object_name.split("/")[-1].split(".")[0][:10]  # Assuming the hour is included in the filename
+                Hour_default_dict[radar_name][file_hour].add(file.object_name)
+                if len(Hour_default_dict[radar_name][file_hour]) > 24:
                     yielded_files += 1
-                    yield list(Hour_default_dict[radar_name]), yielded_files / total_num_hours
+                    yield list(Hour_default_dict[radar_name][file_hour]), yielded_files / total_num_hours
         for radar_name in Hour_default_dict:
             for entry in Hour_default_dict[radar_name]:
                 yielded_files += 1
@@ -488,7 +489,7 @@ class Job:
                 data=self.data.copy()
                 #remove hash from data
                 data.pop('hash',None)
-                data['objectname']=', '.join(files)
+                data['objectname']=','.join(files)
                 data['launch']=False
                 await node.put_job(Job(str(int(self.job_id)+idx),data),ttl=3600)
                 self.set_status(progress)
@@ -515,7 +516,7 @@ class Job:
             files=[]
             #Download the files
             for inputfile in self.data["objectname"].split(","):
-                
+                # print("Grabbing file {}".format(inputfile))
                 tmpfile=os.path.join('/dev/shm/',self.tmpdir,inputfile.split("/")[-1])
                 destfile=os.path.join('/dev/shm/',self.destdir,self.ObjectNameConverters[self.data['task']](inputfile).split("/")[-1])
 
@@ -537,15 +538,16 @@ class Job:
                         tmpfile=tmpfile[:-4]
                 files.append(tmpfile)
             #Launch the task
-            if self.data['task'] in self.switcher:
+            print("files", files)
+            if self.data['task'] in self.switcher:  
                 args=self.data.get('args',[])
                 cmd = self.switcher[self.data['task']](files, destfile, *args, **self.data)
-                if True:
+                # if True:
                     
-                    os.makedirs('/app/perf_results/{}/'.format(self.data['task']),exist_ok=True)
-                    #land results in /app/perf_results/{self.data['task']}/
-                    #write the perf results to the file
-                    cmd='perf record -g --call-graph dwarf {} && perf report --stdio > /app/perf_results/{}/{}.txt'.format(cmd,self.data['task'],self.data['objectname'].split("/")[-1])
+                #     os.makedirs('/app/perf_results/{}/'.format(self.data['task']),exist_ok=True)
+                #     #land results in /app/perf_results/{self.data['task']}/
+                #     #write the perf results to the file
+                #     cmd='perf record -g --call-graph dwarf {} && perf report --stdio > /app/perf_results/{}/{}.txt'.format(cmd,self.data['task'],self.data['objectname'].split("/")[-1])
                         
                 subprocess.run(cmd, shell=True)
             
