@@ -15,19 +15,24 @@ import os
 logger=logging.getLogger(__name__)
 class Tasks:
     def getFitacfCommand(files, destfile,*args, **kwargs):
-        return "make_fit -fitacf3 {} > {}".format(' '.join(files), destfile)
+        return "make_fit -fitacf3 {} > {}".format(' '.join([str(f) for f in files]), destfile)
     def getDespeckCommand(files, destfile,*args, **kwargs):
-        return "fit_speck_removal {} >{}".format(' '.join(files), destfile)
+        return "fit_speck_removal {} >{}".format(' '.join([str(f) for f in files]), destfile)
     def getCombineCommand(files, destfile,*args, **kwargs):
-        return " cat {} > {}".format(' '.join(files), destfile)
+        try:
+            print("combine {} > {}".format(' '.join([str(f) for f in files]), destfile))
+            return " cat {} > {}".format(' '.join([str(f) for f in files]), destfile)
+        except Exception as e:
+            print("Error combining files: {}".format(e))
+            raise e
     def getCombineGridCommand(files, destfile,*args, **kwargs):
-        return "combine_grid {} > {}".format(' '.join(files), destfile)
+        return "combine_grid {} > {}".format(' '.join([str(f) for f in files]), destfile)
     def getMakeGridCommand(files, destfile,*args, **kwargs):
-        return "make_grid {} {} > {}".format(' '.join(files), kwargs.get('params', ''),destfile)
+        return "make_grid {} {} > {}".format(' '.join([str(f) for f in files]), kwargs.get('params', ''),destfile)
     def getMapGrdCommand(files, destfile,*args, **kwargs):
-        return "map_grd {} | map_addhmb | map_addimf -if {} | map_addmodel {} | map_fit > {}".format(' '.join(files), kwargs.get('imffilepath', ''), kwargs.get('params', ''), destfile)
+        return "map_grd {} | map_addhmb | map_addimf -if {} | map_addmodel {} | map_fit > {}".format(' '.join([str(f) for f in files]), kwargs.get('imffilepath', ''), kwargs.get('params', ''), destfile)
     def runCommand(files, destfile,*args, **kwargs):
-        return " ".join(args)
+        return " ".join([str(f) for f in files])
     fitacf = getFitacfCommand
     despeck = getDespeckCommand
     combine = getCombineCommand
@@ -46,10 +51,10 @@ class NameConverters:
         object_names=inputFileName.split(",")   
         #take just the date part of the filename
         file=object_names[0].split("/")[-1]
-        return object_names[0].replace(file,file[:8]+"."+file.split(".")[3]+file.split(".")[4:])
+        return object_names[0].replace(file,str(file[:8])+"."+str(file.split(".")[3])+str(file.split(".")[4:]))
     def combineGridName(inputFileName):
         object_names=inputFileName.split(",")
-        return object_names[0].replace(object_names[0].split("/")[-1],object_names[0].split("/")[-1][:8]+".north.grd")
+        return object_names[0].replace(object_names[0].split("/")[-1],str(object_names[0].split("/")[-1][:8])+".north.grd")
     def makeGridName(inputFileName):
         return inputFileName.replace('.fitacf3','.grd').replace('.bz2','').replace('.despeck','')
     def mapGrdName(inputFileName):
@@ -241,7 +246,7 @@ class FileGroupers:
         RadarDate_default_dict = defaultdict(lambda: defaultdict(set))
         yielded_files = 0
         for idx, file in enumerate(node.MinioClient.list_objects(bucket,recursive=True)):
-            radar_name = next((name for name in FileGroupers.radarnames if name in file), None)
+            radar_name = next((name for name in FileGroupers.radarnames if name in file.object_name), None)
             if radar_name:
                 file_date = file.object_name.split("/")[-1].split(".")[0][:8]
                 RadarDate_default_dict[radar_name][file_date].add(file.object_name)
@@ -350,8 +355,8 @@ class Job:
         self.file_grouper = {
             'fitacf': FileGroupers.singleFiles,
             'despeck': FileGroupers.singleFiles,
-            'convert_to_daily': FileGroupers.groupByDate,
-            'combine_grids': FileGroupers.singleFiles,
+            'convert_to_daily': FileGroupers.groupByRadarAndDate,
+            'combine_grids': FileGroupers.groupByDate,
             'make_grid': FileGroupers.singleFiles,
             'map_grd': FileGroupers.singleFiles,
             'test': FileGroupers.singleFiles
@@ -489,7 +494,7 @@ class Job:
                 data=self.data.copy()
                 #remove hash from data
                 data.pop('hash',None)
-                data['objectname']=','.join(files)
+                data['objectname']=','.join([str(f) for f in files])
                 data['launch']=False
                 await node.put_job(Job(str(int(self.job_id)+idx),data),ttl=3600)
                 self.set_status(progress)
@@ -515,7 +520,8 @@ class Job:
             os.makedirs(destfile,exist_ok=True)
             files=[]
             #Download the files
-            for inputfile in self.data["objectname"].split(","):
+            print(("Downloading files from {} to {}".format(self.data['source_bucket'],self.data['objectname'])))
+            for inputfile in self.data["objectname"].split(','):
                 # print("Grabbing file {}".format(inputfile))
                 tmpfile=os.path.join('/dev/shm/',self.tmpdir,inputfile.split("/")[-1])
                 destfile=os.path.join('/dev/shm/',self.destdir,self.ObjectNameConverters[self.data['task']](inputfile).split("/")[-1])
@@ -542,13 +548,13 @@ class Job:
             if self.data['task'] in self.switcher:  
                 args=self.data.get('args',[])
                 cmd = self.switcher[self.data['task']](files, destfile, *args, **self.data)
-                # if True:
                     
                 #     os.makedirs('/app/perf_results/{}/'.format(self.data['task']),exist_ok=True)
                 #     #land results in /app/perf_results/{self.data['task']}/
                 #     #write the perf results to the file
                 #     cmd='perf record -g --call-graph dwarf {} && perf report --stdio > /app/perf_results/{}/{}.txt'.format(cmd,self.data['task'],self.data['objectname'].split("/")[-1])
-                        
+                MinioClient.fput_object(self.data['diag'], self.ObjectNameConverters[self.data['task']](self.data['objectname']), "/app/perf_results/{}/{}.txt'.format(cmd,self.data['task'],self.data['objectname'].split('/')[-1]")
+
                 subprocess.run(cmd, shell=True)
             
                 MinioClient.fput_object(self.data['dest_bucket'], self.ObjectNameConverters[self.data['task']](self.data['objectname']), destfile)
