@@ -51,8 +51,8 @@ class NameConverters:
         object_names=inputFileName.split(",")  
         #take just the date part of the filename
         file=object_names[0].split("/")[-1]
-        result= object_names[0].replace(file,str(file[:8])+"."+str(file.split(".")[3])+".".join([str(f) for f in file.split(".")[4:]]))
-        print("result",result)
+        result= object_names[0].replace(file,str(file[:8])+"."+str(file.split(".")[3])+"."+".".join([str(f) for f in file.split(".")[4:]]))
+        # print("result",result)
         return result.replace('.bz2','')
     def combineGridName(inputFileName):
         object_names=inputFileName.split(",")
@@ -378,7 +378,7 @@ class Job:
         self.VisualiseSwitcher={
             'fitacf': Visualizers.visualiseFitacf,
             'despeck': Visualizers.visualiseDespeck,
-            'convert_to_daily': Visualizers.visualiseCombine,
+            'convert_to_daily': Visualizers.visualiseFitacf,
             'combine_grids': Visualizers.visualiseCombineGrid,
             'make_grid': Visualizers.visualiseMakeGrid,
             'map_grd': Visualizers.visualiseMapGrd
@@ -546,7 +546,7 @@ class Job:
                         tmpfile=tmpfile[:-4]
                 files.append(tmpfile)
             #Launch the task
-            print("files", files)
+            # print("files", files)
             if self.data['task'] in self.switcher:  
                 args=self.data.get('args',[])
                 cmd = self.switcher[self.data['task']](files, destfile, *args, **self.data)

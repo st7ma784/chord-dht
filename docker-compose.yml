@@ -39,8 +39,6 @@ services:
       - "com.centurylinklabs.watchtower.enable=true"
     depends_on:
       - bootstrap
-    environment:
-      - MINIO_URL=10.45.15.149:9000
     develop:
       watch:
         - action: sync+restart
