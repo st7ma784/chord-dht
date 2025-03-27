@@ -48,10 +48,12 @@ class NameConverters:
     def convertDespeckName(inputFileName):
         return inputFileName.replace('.fitacf3','.despeck.fitacf3').replace('.bz2','')
     def converttoDailyName(inputFileName):
-        object_names=inputFileName.split(",")   
+        object_names=inputFileName.split(",")  
         #take just the date part of the filename
         file=object_names[0].split("/")[-1]
-        return object_names[0].replace(file,str(file[:8])+"."+str(file.split(".")[3])+str(file.split(".")[4:]))
+        result= object_names[0].replace(file,str(file[:8])+"."+str(file.split(".")[3])+".".join([str(f) for f in file.split(".")[4:]]))
+        print("result",result)
+        return result.replace('.bz2','')
     def combineGridName(inputFileName):
         object_names=inputFileName.split(",")
         return object_names[0].replace(object_names[0].split("/")[-1],str(object_names[0].split("/")[-1][:8])+".north.grd")
@@ -522,13 +524,13 @@ class Job:
             #Download the files
             print(("Downloading files from {} to {}".format(self.data['source_bucket'],self.data['objectname'])))
             for inputfile in self.data["objectname"].split(','):
-                # print("Grabbing file {}".format(inputfile))
+                print("Grabbing file {}".format(inputfile))
                 tmpfile=os.path.join('/dev/shm/',self.tmpdir,inputfile.split("/")[-1])
                 destfile=os.path.join('/dev/shm/',self.destdir,self.ObjectNameConverters[self.data['task']](inputfile).split("/")[-1])
 
                 os.makedirs(tmpfile,exist_ok=True)
                 try:
-                    MinioClient.fget_object(self.data['source_bucket'], self.data['objectname'], tmpfile)
+                    MinioClient.fget_object(self.data['source_bucket'],inputfile, tmpfile)
                     if inputfile.endswith('.bz2'):
                         subprocess.run("bzip2 -d {}".format(tmpfile), shell=True)
                         tmpfile=tmpfile[:-4]
@@ -538,7 +540,7 @@ class Job:
                     destfile=os.path.join('./',self.destdir,self.ObjectNameConverters[self.data['task']](inputfile).split("/")[-1])
                     os.makedirs(os.path.join('./',self.tmpdir),exist_ok=True)
                     os.makedirs(os.path.join('./',self.destdir),exist_ok=True)
-                    MinioClient.fget_object(self.data['source_bucket'], self.data['objectname'], tmpfile)
+                    MinioClient.fget_object(self.data['source_bucket'], inputfile, tmpfile)
                     if self.data['objectname'].endswith('.bz2'):
                         subprocess.run("bzip2 -d {}".format(tmpfile), shell=True)
                         tmpfile=tmpfile[:-4]
@@ -553,7 +555,7 @@ class Job:
                 #     #land results in /app/perf_results/{self.data['task']}/
                 #     #write the perf results to the file
                 #     cmd='perf record -g --call-graph dwarf {} && perf report --stdio > /app/perf_results/{}/{}.txt'.format(cmd,self.data['task'],self.data['objectname'].split("/")[-1])
-                MinioClient.fput_object(self.data['diag'], self.ObjectNameConverters[self.data['task']](self.data['objectname']), "/app/perf_results/{}/{}.txt'.format(cmd,self.data['task'],self.data['objectname'].split('/')[-1]")
+                # MinioClient.fput_object('diag', self.ObjectNameConverters[self.data['task']](self.data['objectname']), "/app/perf_results/{}/{}.txt'.format(cmd,self.data['task'],self.data['objectname'].split('/')[-1]")
 
                 subprocess.run(cmd, shell=True)
             
