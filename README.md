@@ -67,3 +67,4 @@ sudo sh -c 'echo "kernel.kptr_restrict=0" >> /etc/sysctl.conf'
 sudo sysctl -p
 ```
 3. set the debug flag in job to add perf recording.
+
