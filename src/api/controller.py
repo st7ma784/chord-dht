@@ -4,6 +4,7 @@ from .job import Job
 
 """
 This module defines the ApiController class, which provides an HTTP interface for interacting with a Chord DHT (Distributed Hash Table) network.
+
 The ApiController allows users to:
 - Submit jobs to the Chord DHT.
 - Check the status of jobs.
@@ -15,22 +16,33 @@ The Chord DHT is used to distribute jobs across a decentralized network of nodes
 
 class ApiController(asyncio.Protocol):
     """
-    This class represents the API controller, which acts as the entry point for HTTP requests.
-    It provides endpoints for managing jobs, interacting with MinIO, and querying the Chord DHT network.
+    Represents the API controller, which acts as the entry point for HTTP requests.
+
+    Provides endpoints for managing jobs, interacting with MinIO, and querying the Chord DHT network.
     """
 
     def __init__(self, chord_node):
         """
-        Initialize the API controller with a reference to the Chord node.
-        :param chord_node: The Chord node instance this controller interacts with.
+        Initializes the API controller with a reference to the Chord node.
+
+        Args:
+            chord_node: The Chord node instance this controller interacts with.
         """
         self.chord_node = chord_node
         self.jobs = {}  # Dictionary to store jobs submitted to the system
 
     async def index(self, request):
         """
-        Serve the index.html file for the API's main page.
+        Serves the index.html file for the API's main page.
+
         This is the default route for the web interface.
+
+        Args:
+            request: The HTTP request object.
+
+        Returns:
+            web.FileResponse: The index.html file.
+            web.Response: An error response if the file cannot be served.
         """
         try:
             return web.FileResponse('./src/api/templates/index.html')
@@ -40,8 +52,15 @@ class ApiController(asyncio.Protocol):
 
     async def test_minio(self, request):
         """
-        Test the connection to the MinIO object storage.
+        Tests the connection to the MinIO object storage.
+
         If the "test" bucket does not exist, it creates the bucket.
+
+        Args:
+            request: The HTTP request object.
+
+        Returns:
+            web.Response: A response indicating the result of the test.
         """
         print("Testing Minio")
         bucket_name = "test"
@@ -59,8 +78,15 @@ class ApiController(asyncio.Protocol):
 
     async def test_DHT(self, request):
         """
-        Test the Chord DHT by submitting a simple job.
+        Tests the Chord DHT by submitting a simple job.
+
         The job is distributed across the Chord ring, and the response indicates the nodes involved.
+
+        Args:
+            request: The HTTP request object.
+
+        Returns:
+            web.Response: A response indicating the result of the test.
         """
         print("Testing DHT")
         tasknm = "test"
@@ -75,8 +101,16 @@ class ApiController(asyncio.Protocol):
 
     async def get_buckets(self, request):
         """
-        Retrieve the list of buckets from MinIO.
+        Retrieves the list of buckets from MinIO.
+
         This is used to populate dropdowns in the web interface.
+
+        Args:
+            request: The HTTP request object.
+
+        Returns:
+            web.json_response: A JSON response containing the list of buckets.
+            web.Response: An error response if the operation fails.
         """
         print("Getting Buckets")
         try:
@@ -90,8 +124,15 @@ class ApiController(asyncio.Protocol):
 
     async def add_job(self, request):
         """
-        Add a single job to the Chord DHT.
+        Adds a single job to the Chord DHT.
+
         The job is distributed to the appropriate node in the ring based on its hash.
+
+        Args:
+            request: The HTTP request object containing the job data.
+
+        Returns:
+            web.json_response: A JSON response containing the job ID and keys.
         """
         data = await request.json()
         job_id = str(len(self.jobs) + 1)
@@ -104,8 +145,15 @@ class ApiController(asyncio.Protocol):
 
     async def get_job_status(self, request):
         """
-        Retrieve the status of a specific job by its hash.
+        Retrieves the status of a specific job by its hash.
+
         The job is looked up in the Chord DHT, and its status is returned.
+
+        Args:
+            request: The HTTP request object containing the job hash.
+
+        Returns:
+            web.json_response: A JSON response containing the job data or an error message.
         """
         job_id = request.query['hash']
         serial = await self.chord_node.find_job(job_id)
@@ -118,8 +166,15 @@ class ApiController(asyncio.Protocol):
 
     async def get_all_jobs(self, request):
         """
-        Retrieve the status of all jobs stored on the current node.
+        Retrieves the status of all jobs stored on the current node.
+
         This includes jobs that the node is responsible for in the Chord ring.
+
+        Args:
+            request: The HTTP request object.
+
+        Returns:
+            web.json_response: A JSON response containing the list of jobs.
         """
         jobs = []
         for key, val in zip(*self.chord_node._storage.get_my_data()):
@@ -130,8 +185,15 @@ class ApiController(asyncio.Protocol):
 
     async def getStatus(self, request):
         """
-        Retrieve the status of the MinIO server and the Chord DHT node.
+        Retrieves the status of the MinIO server and the Chord DHT node.
+
         This is used to check if the system is online and operational.
+
+        Args:
+            request: The HTTP request object.
+
+        Returns:
+            web.json_response: A JSON response containing the system status.
         """
         try:
             status_dict = {"minio": "online" if len(self.chord_node.MinioClient.list_buckets()) >= 1 else "offline"}
@@ -143,8 +205,15 @@ class ApiController(asyncio.Protocol):
 
     async def getfinger(self, request):
         """
-        Retrieve the finger table entries for the current Chord node.
+        Retrieves the finger table entries for the current Chord node.
+
         The finger table is used for efficient routing in the Chord ring.
+
+        Args:
+            request: The HTTP request object.
+
+        Returns:
+            web.json_response: A JSON response containing the finger table entries.
         """
         fingers = self.chord_node._fingers
         fingers = list(set(finger["addr"] for finger in fingers))
@@ -152,8 +221,12 @@ class ApiController(asyncio.Protocol):
 
     async def get_nodes(self):
         """
-        Retrieve information about all nodes in the Chord ring.
+        Retrieves information about all nodes in the Chord ring.
+
         This includes node IDs, numeric IDs, and the keys they are responsible for.
+
+        Returns:
+            dict: A dictionary containing information about all nodes in the Chord ring.
         """
         response = {
             node: {
@@ -167,8 +240,12 @@ class ApiController(asyncio.Protocol):
 
     def get_routes(self):
         """
-        Define the HTTP routes for the API.
+        Defines the HTTP routes for the API.
+
         These routes map to the methods defined in this controller.
+
+        Returns:
+            list: A list of web routes.
         """
         return [
             # Routes for job management
