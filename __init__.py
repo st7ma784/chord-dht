@@ -16,6 +16,22 @@ Each node is responsible for a specific range of keys, allowing tasks to be dist
 This approach is particularly beneficial for workloads like SuperDARN, which excel on single CPU cores but require 
 scalable and fault-tolerant systems for large-scale data processing.
 
+##Why: 
+
+For the purpose of the SuperDARN project, we need to distribute workloads between Chord nodes to ensure that tasks are executed efficiently and reliably.
+It also sits well with the goal to eventually perform machine learning on the data, which requires a distributed system to handle large datasets and complex computations.
+Therefore this code base assumes a MINIO server to store the data, which is a distributed object storage system that is compatible with Amazon S3.
+
+MINIO excels at random access to data, such as might be needed for machine learning tasks, and is designed to work well with distributed systems.
+This allows for efficient data retrieval and processing, making it an ideal choice for the SuperDARN project.
+
+However, as seen in the PTL part of the project, caching is still a useful speed up for the system. 
+
+For later users, who may have LUNA or other systems, the code is designed to be modular and extensible, but may not be as efficient as can be implemented in a more tightly integrated storage backend. 
+
+To the future RSEs: this can probably be improved by using a more efficient storage backend, such as LUNA or other systems, but was sufficient for the current use case.
+
+
 ### Benefits for SuperDARN Workloads:
 - **Scalability**: By distributing tasks across multiple nodes, the system can handle larger datasets and more complex computations.
 - **Fault Tolerance**: The Chord DHT ensures redundancy and recovery mechanisms, minimizing the impact of node failures.
