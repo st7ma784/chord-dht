@@ -1,3 +1,7 @@
+
+
+
+
 """
 Chord-DHT Package
 
@@ -17,18 +21,6 @@ scalable and fault-tolerant systems for large-scale data processing.
 - **Fault Tolerance**: The Chord DHT ensures redundancy and recovery mechanisms, minimizing the impact of node failures.
 - **Efficient Resource Utilization**: Tasks are assigned to nodes based on their hash values, ensuring balanced workload distribution.
 
-## File Organization
-
-The Chord-DHT package is organized into two main components:
-
-1. **chord**:
-   - Contains the core logic of the Chord DHT system, including the implementation of the ring structure, hashing, and node communication.
-
-2. **api**:
-   - Acts as the web interface for nodes, enabling external interactions and handling requests, such as those from SuperDARN.
-
-This separation ensures a clear distinction between the core functionality and the interface layer, promoting modularity and ease of maintenance.
-
 ## How to Spin Up the System with Docker-Compose
 
 To quickly set up the Chord-DHT system, you can use the provided `docker-compose.yml` file. Follow these steps:
@@ -40,9 +32,5 @@ To quickly set up the Chord-DHT system, you can use the provided `docker-compose
    ```bash
    git clone https://github.com/st7ma784/chord-dht.git
    cd chord-dht
-   
-   ```   
-   """
 
-from .api import *
-from .chord import *
+from .src import *
