@@ -12,28 +12,64 @@ import threading
 
 
 async def _start_api_server(chord_node: Node):
+    """
+    Starts the API server for the Chord node.
+
+    Args:
+        chord_node (Node): The Chord node instance to associate with the API server.
+
+    Returns:
+        aiohttp.web.Application: The aiohttp application instance for the API server.
+    """
     app = aiohttp.web.Application()
     api_controller = ApiController(chord_node)
     app.add_routes(api_controller.get_routes())
     return app
 
 
-
 async def _stop_api_server(runner):
+    """
+    Stops the API server.
+
+    Args:
+        runner (aiohttp.web.AppRunner): The application runner for the API server.
+
+    Returns:
+        None
+    """
     await runner.cleanup()
 
 
 async def _start_chord_node(args):
     """
-    Start Chord Node
+    Starts a Chord node.
+
+    Args:
+        args (argparse.Namespace): Command-line arguments containing the DHT address and MinIO URL.
+
+    Returns:
+        tuple: A tuple containing the host, port, and the Chord node instance.
     """
     dht_address = args.dht_address
     host, port = dht_address.split(":")
-    args={"minio_url":args.minio_url}
-    return host, int(port), Node(host=host, port=port,**args)
+    args = {"minio_url": args.minio_url}
+    return host, int(port), Node(host=host, port=port, **args)
 
 
 async def _start(args: argparse.Namespace):
+    """
+    Starts the Chord node and its associated API server.
+
+    This function initializes the Chord node, joins it to the Chord ring, and starts the API server
+    for handling external requests. It also schedules background tasks for maintaining the Chord ring.
+
+    Args:
+        args (argparse.Namespace): Command-line arguments containing the DHT address, API address,
+            MinIO URL, and bootstrap node information.
+
+    Returns:
+        None
+    """
     nest_asyncio.apply()
 
     dht_host, dht_port, chord_node = await _start_chord_node(args)
@@ -44,22 +80,19 @@ async def _start(args: argparse.Namespace):
     fix_fingers_task = loop.create_task(chord_node.fix_fingers())
     check_pred_task = loop.create_task(chord_node.check_predecessor())
     fix_successor_task = loop.create_task(chord_node.fix_successor_list())
-    do_work= loop.create_task(chord_node.worker())
-
-
+    do_work = loop.create_task(chord_node.worker())
 
     api_address = args.api_address
     api_host = api_address.split(":")[0]
     api_port = api_address.split(":")[1]
     chord_rpc_server = await aiomas.rpc.start_server((dht_host, int(dht_port)), chord_node)
     app = await _start_api_server(chord_node)
-    # ensure api server is running
+
+    # Ensure API server is running
     runner = aiohttp.web.AppRunner(app)
     await runner.setup()
 
-
-
-    run_site=loop.create_task(aiohttp.web.TCPSite(runner, api_host, int(api_port)).start())
+    run_site = loop.create_task(aiohttp.web.TCPSite(runner, api_host, int(api_port)).start())
 
     async with chord_rpc_server:
         return await asyncio.gather(
@@ -73,17 +106,20 @@ async def _start(args: argparse.Namespace):
         )
 
 
-
-
 if __name__ == "__main__":
+    """
+    Entry point for starting the Chord DHT node and API server.
+
+    Parses command-line arguments to configure the DHT node, API server, and MinIO integration.
+    Initializes the Chord node and starts the event loop for handling requests and maintaining the ring.
+    """
     parser = argparse.ArgumentParser()
 
-    import os
     parser.add_argument("--dht_address", help="Address to run the DHT Node on", default="{}:6501".format(os.getenv("HOSTNAME", "localhost")))
-    parser.add_argument("--api_address", help="Address to run the DHT Node on", default="{}:8001".format(os.getenv("HOSTNAME", "localhost")))
-    parser.add_argument("--minio_url", help="Address to run the Minio Server on", default="{}:9000".format(os.getenv("HOSTNAME", "localhost")))
+    parser.add_argument("--api_address", help="Address to run the API server on", default="{}:8001".format(os.getenv("HOSTNAME", "localhost")))
+    parser.add_argument("--minio_url", help="Address to run the MinIO server on", default="{}:9000".format(os.getenv("HOSTNAME", "localhost")))
     parser.add_argument(
-        "--bootstrap_node", help="Start a new Chord Ring if argument no present", default=None,
+        "--bootstrap_node", help="Start a new Chord Ring if argument not present", default=None,
     )
     arguments = parser.parse_args()
     asyncio.run(_start(arguments))

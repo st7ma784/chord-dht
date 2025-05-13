@@ -43,6 +43,8 @@ To quickly set up the Chord-DHT system, you can use the provided `docker-compose
    
    ```   
    """
+import .api
 
-from .api import *
-from .chord import *
+import .chord
+
+from main import _start_api_server, _stop_api_server, _start_chord_node, _start 

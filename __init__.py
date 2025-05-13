@@ -65,4 +65,4 @@ To quickly set up the Chord-DHT system, you can use the provided `docker-compose
    You can monitor the status of your jobs through the web interface. The system will provide updates on job progress and completion.
    
 """
-from .src import *
+import src
