@@ -32,5 +32,21 @@ To quickly set up the Chord-DHT system, you can use the provided `docker-compose
    ```bash
    git clone https://github.com/st7ma784/chord-dht.git
    cd chord-dht
-
+   ```
+3. **Build the Docker Images**:
+   ```bash
+   docker-compose build
+   ```
+4. **Start the Chord-DHT Network**:
+   ```bash
+   docker-compose up
+   ```
+5. **Access the Web Interface**:
+   Open your web browser and navigate to `http://localhost:5000` to access the Chord-DHT web interface.
+6. **Submit Jobs**:
+   Use the web interface to submit jobs to the Chord-DHT network. The controller will handle job distribution and execution across the nodes.
+7. **Monitor Jobs**:
+   You can monitor the status of your jobs through the web interface. The system will provide updates on job progress and completion.
+   
+"""
 from .src import *
