@@ -1,6 +1,5 @@
 import hashlib
 import subprocess
-import pydarn
 import matplotlib.pyplot as plt
 import cv2
 import base64
