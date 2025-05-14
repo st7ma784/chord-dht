@@ -3,15 +3,69 @@ from aiohttp import web
 from .job import Job
 
 """
-This module defines the ApiController class, which provides an HTTP interface for interacting with a Chord DHT (Distributed Hash Table) network.
+Controller Module
+=================
 
-The ApiController allows users to:
-- Submit jobs to the Chord DHT.
-- Check the status of jobs.
-- Interact with MinIO storage for bucket management.
-- Retrieve information about the Chord ring, such as finger tables and node statuses.
+This module defines the `ApiController` class, which provides an HTTP interface for interacting with a Chord 
+Distributed Hash Table (DHT) network. The `ApiController` acts as the entry point for managing jobs, querying 
+the Chord ring, and interacting with MinIO object storage.
 
-The Chord DHT is used to distribute jobs across a decentralized network of nodes, ensuring scalability and fault tolerance.
+Key Features
+------------
+
+- **Job Management**:
+  - Submit jobs to the Chord DHT.
+  - Retrieve the status of specific jobs or all jobs stored on the current node.
+  - Distribute jobs across the Chord ring for decentralized execution.
+
+- **MinIO Integration**:
+  - Interact with MinIO object storage for bucket management.
+  - Test MinIO connectivity and retrieve the list of available buckets.
+
+- **Chord Ring Operations**:
+  - Retrieve finger table entries for efficient routing.
+  - Query the status of all nodes in the Chord ring.
+  - Test the Chord DHT by submitting sample jobs.
+
+- **System Status**:
+  - Check the status of the MinIO server and the Chord DHT node.
+  - Verify if the system is online and operational.
+
+- **Web Interface**:
+  - Serve an index page for the API's main interface.
+  - Provide HTTP routes for interacting with the Chord DHT and MinIO.
+
+Dependencies
+------------
+
+- **aiohttp**:
+  Provides the framework for handling HTTP requests and responses.
+
+- **asyncio**:
+  Used for asynchronous operations and managing event loops.
+
+- **MinIO**:
+  Enables interaction with MinIO object storage for bucket and object management.
+
+- **Job**:
+  A custom class for managing distributed jobs in the Chord DHT.
+
+Routes
+------
+
+The `ApiController` defines the following HTTP routes:
+
+- `/submit`: Submit a job to the Chord DHT.
+- `/getjob`: Retrieve the status of a specific job.
+- `/getjobs`: Retrieve the status of all jobs stored on the current node.
+- `/getbuckets`: Retrieve the list of MinIO buckets.
+- `/getstatus`: Check the status of the MinIO server and Chord DHT node.
+- `/getfinger`: Retrieve the finger table entries for the current node.
+- `/nodes_status`: Retrieve information about all nodes in the Chord ring.
+- `/test`: Test MinIO connectivity.
+- `/test_dht`: Test the Chord DHT by submitting a sample job.
+- `/`: Serve the index page for the API.
+
 """
 
 class ApiController(asyncio.Protocol):
