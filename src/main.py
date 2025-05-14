@@ -9,7 +9,57 @@ import nest_asyncio
 from api.controller import ApiController
 from chord.node import Node
 import threading
+"""
+Main Module
+===========
 
+This module serves as the entry point for starting a Chord Distributed Hash Table (DHT) node and its associated 
+API server. It initializes the Chord node, joins it to the Chord ring, and starts the API server for handling 
+external requests. The module also schedules background tasks for maintaining the Chord ring and managing 
+distributed jobs.
+
+Key Features
+------------
+
+- **Chord Node Initialization**:
+  - Starts a Chord node with the specified DHT address and MinIO URL.
+  - Joins the node to an existing Chord ring or starts a new ring if no bootstrap node is provided.
+
+- **API Server**:
+  - Starts an HTTP API server using `aiohttp` to interact with the Chord DHT.
+  - Provides routes for job submission, querying the Chord ring, and interacting with MinIO object storage.
+
+- **Background Tasks**:
+  - Schedules tasks for stabilizing the Chord ring, fixing finger tables, checking predecessors, and maintaining 
+    the successor list.
+  - Runs a worker task for processing distributed jobs.
+
+- **Command-Line Interface**:
+  - Parses command-line arguments to configure the DHT node, API server, and MinIO integration.
+  - Supports specifying the DHT address, API address, MinIO URL, and bootstrap node.
+
+Dependencies
+------------
+
+- **aiohttp**:
+  Provides the framework for handling HTTP requests and responses.
+
+- **aiomas**:
+  Enables RPC communication between Chord nodes.
+
+- **asyncio**:
+  Manages asynchronous operations and event loops.
+
+- **nest_asyncio**:
+  Allows nested event loops for compatibility with certain environments.
+
+- **argparse**:
+  Parses command-line arguments for configuring the DHT node and API server.
+
+- **MinIO**:
+  Used for interacting with MinIO object storage for distributed job management.
+
+"""
 
 async def _start_api_server(chord_node: Node):
     """
