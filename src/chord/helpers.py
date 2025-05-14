@@ -1,3 +1,27 @@
+"""
+Helpers Module
+==============
+
+This module provides utility functions for the Chord Distributed Hash Table (DHT) system. These functions 
+support operations such as generating unique IDs, creating finger table entries, checking ranges in a circular 
+ring, and printing data in a tabular format.
+
+Functions
+---------
+
+- **generate_id**:
+  Generates a unique ID for a key or node on the ring.
+
+- **gen_finger**:
+  Generates an entry in the finger table for a given node.
+
+- **between**:
+  Checks if an ID lies between two boundaries in a circular ring.
+
+- **print_table**:
+  Pretty prints a list of dictionaries as a table.
+
+"""
 import hashlib
 from typing import Union
 

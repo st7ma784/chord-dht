@@ -1,3 +1,59 @@
+"""
+Node Module
+===========
+
+This module implements the `Node` class, which is responsible for managing a node in the Chord Distributed Hash Table (DHT) system. 
+The Chord algorithm is implemented to enable decentralized and efficient management of key-value pairs across a distributed network of nodes.
+
+Key Features
+------------
+
+- **Node Initialization**:
+  - Initializes a node with its address, ID, and storage.
+  - Configures the MinIO client for object storage integration.
+
+- **Joining the Network**:
+  - Allows a node to join an existing Chord ring by connecting to a bootstrap node.
+  - Handles the initialization of the finger table, predecessor, and successor.
+
+- **Stabilization**:
+  - Periodically verifies and updates the successor and predecessor nodes.
+  - Ensures the finger table is up-to-date for efficient routing.
+
+- **Routing**:
+  - Implements methods to find the closest preceding node and the successor for a given key.
+  - Supports multi-hop routing to locate the appropriate node for a key.
+
+- **Storage Integration**:
+  - Integrates with the `Storage` class to manage key-value pairs locally.
+  - Supports replication and retrieval of keys across the network.
+
+Dependencies
+------------
+
+- **api.job**:
+  Provides job management functionality for distributed tasks.
+
+- **chord.helpers**:
+  Utility functions for generating IDs, checking ranges, and printing tables.
+
+- **chord.rpc**:
+  Remote procedure call (RPC) functions for inter-node communication.
+
+- **chord.storage**:
+  Local storage management for key-value pairs.
+
+- **minio**:
+  MinIO client for object storage integration.
+
+Classes
+-------
+
+- **Node**:
+  Represents a node in the Chord DHT system and implements the core Chord algorithm.
+
+"""
+
 import asyncio
 import os
 from api.job import Job

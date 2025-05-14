@@ -1,3 +1,45 @@
+"""
+RPC Module
+==========
+
+This module contains the Remote Procedure Call (RPC) functions used for communication between nodes in the 
+Chord Distributed Hash Table (DHT) system. These functions enable inter-node communication for tasks such as 
+finding successors, retrieving and storing keys, managing node relationships, and handling distributed jobs.
+
+Key Features
+------------
+
+- **Successor and Predecessor Management**:
+  - `rpc_ask_for_succ`: Finds the successor for a given numeric ID.
+  - `rpc_ask_for_pred_and_succlist`: Retrieves the predecessor and successor list of a node.
+
+- **Node Communication**:
+  - `rpc_ping`: Pings a node to check its availability.
+  - `rpc_notify`: Notifies a node that the calling node is now its predecessor.
+
+- **Key-Value Operations**:
+  - `rpc_get_key`: Retrieves a value associated with a key from the DHT.
+  - `rpc_save_key`: Stores a key-value pair in the DHT.
+  - `rpc_put_key`: Replicates and stores a key-value pair in the DHT.
+  - `rpc_get_all_keys`: Retrieves all key-value pairs stored on a specific node.
+
+- **Job Management**:
+  - `rpc_find_job`: Finds and retrieves job data from the DHT.
+
+Dependencies
+------------
+
+- **aiomas**:
+  Provides the RPC framework for asynchronous communication between nodes.
+
+- **chord.helpers**:
+  Utility functions for generating finger table entries.
+
+- **logging**:
+  Used for logging errors and debugging information.
+
+"""
+
 # Description: This file contains the RPC procedures that are used to communicate with other nodes in the network.
 from typing import Optional, List
 
