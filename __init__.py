@@ -78,4 +78,3 @@ To quickly set up the Chord-DHT system, you can use the provided `docker-compose
 import os
 import sys
 #run pip install -r requirements.txt
-os.system("pip install -r requirements.txt")
